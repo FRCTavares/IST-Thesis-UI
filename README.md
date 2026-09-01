@@ -59,71 +59,151 @@ npm ci
 npm run build
 ```
 
+## Runtime boundary
+
+`IST-Thesis-UI` owns only the browser-facing React/Vite frontend.
+
+The live runtime backend remains in `FRCTavares/IST-Thesis-Code`:
+
+- `dashboard_bridge_node` owns the dashboard HTTP API and telemetry WebSocket;
+- `web_video_server` owns the MJPEG video stream;
+- TIM-MARS remains the selected-person identity authority;
+- ROS nodes, perception, tracking, control, and flight-safety logic remain outside this repository.
+
+The live data path is therefore:
+
+    IST-Thesis-Code ROS runtime
+        -> HTTP API :8090
+        -> telemetry WebSocket :8765
+        -> MJPEG video :8080
+        -> IST-Thesis-UI frontend :5173
+
+`mock` and `offline` modes are standalone frontend modes and do not require
+`IST-Thesis-Code` or ROS.
+
 ## Environment variables
 
-Use `.env` (see `.env.example`):
+Use `.env` if explicit endpoint overrides are required; see `.env.example`.
 
 - `VITE_DASHBOARD_DATA_MODE`
-  - `mock`
-  - `offline`
-  - `backend` (default if env var is not set)
+  - `backend` — live backend mode and the default;
+  - `mock` — generated telemetry;
+  - `offline` — one static mock payload with no backend connection.
 - `VITE_DASHBOARD_API_BASE_URL`
-  - HTTP base URL for backend API calls (`/api/model`, `/api/replay`)
+  - HTTP base URL for the dashboard API;
+  - default logical endpoint: `http://<dashboard-host>:8090`.
 - `VITE_DASHBOARD_WS_URL`
-  - WebSocket endpoint for telemetry stream
+  - telemetry WebSocket endpoint;
+  - default logical endpoint: `ws://<dashboard-host>:8765`.
 
-Default behavior without env overrides is `backend` mode.
-For standalone frontend work without ROS, set `VITE_DASHBOARD_DATA_MODE=mock`.
+When the browser is opened from a remote host, localhost-style API and WebSocket
+values are normalized to the browser-visible dashboard host.
 
-## Data modes
+The video URL is derived from the browser host and currently resolves to:
 
-### mock
+    http://<dashboard-host>:8080/stream?topic=/camera/dashboard&type=mjpeg&qos_profile=sensor_data&quality=45
 
-- Generates synthetic telemetry payloads and detections.
-- Supports UI development without ROS or backend running.
+## Live ports
 
-### offline
+| Port | Owner | Purpose |
+|---|---|---|
+| `5173` | `IST-Thesis-UI` | Vite frontend |
+| `8090` | `IST-Thesis-Code` / `dashboard_bridge_node` | HTTP control API |
+| `8765` | `IST-Thesis-Code` / `dashboard_bridge_node` | telemetry WebSocket |
+| `8080` | `IST-Thesis-Code` / `web_video_server` | MJPEG dashboard video |
 
-- Keeps the dashboard UI live with a static mock payload.
-- Useful for demos where no network data should be consumed.
+The frontend launcher defaults to `127.0.0.1:5173`. Binding it to `0.0.0.0`
+is an explicit network-exposure choice; it is not itself an authentication,
+firewall, or CORS policy.
 
-### backend
+## Current HTTP API contract
 
-- Connects to dashboard bridge contracts:
-  - `POST /api/model`
-  - `POST /api/replay`
-  - WebSocket telemetry stream
-- Current live implementation is ROS-native (`dashboard_bridge_node` + `web_video_server`).
+The frontend currently consumes these dashboard bridge endpoints:
 
-## Backend integration readiness
+- `GET /api/models`
+  - returns the model catalogue and availability information;
+- `POST /api/model`
+  - requests detector-model reconfiguration;
+- `POST /api/tracker`
+  - requests tracker reconfiguration;
+- `POST /api/target`
+  - explicitly selects or clears the TIM-MARS target.
 
-The dashboard service adapters are prepared in:
+Replay control is not part of the current dashboard HTTP API.
+
+### Frozen flight-profile reconfiguration
+
+The normal frozen live profile starts the dashboard bridge with runtime
+reconfiguration disabled.
+
+In that profile:
+
+- `POST /api/model` can legitimately return HTTP `409`;
+- `POST /api/tracker` can legitimately return HTTP `409`.
+
+This is intentional. Detector and tracker changes require restarting the live
+stack with an explicitly validated configuration. The field frontend must not
+treat a `409` response as evidence that the dashboard bridge is unavailable.
+
+## Target-selection semantics
+
+`POST /api/target` is not a permanent assignment of physical identity to one
+tracker ID.
+
+A request such as:
+
+    {"target": 3}
+
+uses the person currently represented by tracker ID `3` as the operator's
+bootstrap selection. The dashboard bridge forwards that selection to the
+TIM-MARS selection authority.
+
+TIM-MARS then remains responsible for the selected physical person. If the same
+person is subsequently associated with a different tracker ID, for example
+`12`, the frontend must treat the TIM-MARS status/current target track as
+authoritative rather than continuing to assume tracker ID `3`.
+
+Clearing the selection sends an explicit TIM-MARS clear command. A JSON `null`
+target is the canonical clear representation accepted by the frontend API
+adapter.
+
+The important distinction is:
+
+- tracker ID: transient association identity;
+- operator selection: bootstrap reference to the physical person;
+- TIM-MARS: ongoing selected-person identity authority.
+
+## Telemetry and bounding-box coordinates
+
+Dashboard telemetry contains tracks and detections as normalized center/size
+boxes:
+
+- `x`, `y` — normalized box centre;
+- `w`, `h` — normalized box width and height.
+
+The dashboard bridge converts incoming pixel-space track/detection boxes into
+stream-normalized coordinates using the current camera reference dimensions
+(`camera_ref_w`, `camera_ref_h`). Those reference dimensions are also updated
+from received camera metadata when valid image dimensions are available.
+
+Therefore the frontend overlay contract is **not** "divide boxes by the
+640x640 detector inference size". The detector may run at `640x640`, while the
+dashboard video/reference image can use different dimensions such as
+`1280x720`.
+
+`VideoOverlay.tsx` consumes the already normalized telemetry values and maps
+them onto the displayed video while preserving the video's rendered aspect
+ratio.
+
+## Backend integration
+
+Frontend service adapters are located in:
 
 - `src/features/dashboard/services/dashboardApi.ts`
 - `src/features/dashboard/services/dashboardSocket.ts`
 - `src/features/dashboard/services/dashboardWebSocketProvider.ts`
+- `src/services/config.ts`
 
-These files define the expected backend contract and include safe placeholder behavior so a running backend is not required during frontend development.
-
-## Live ROS dashboard notes (2026-03-25)
-
-- The dashboard video stream URL should include sensor-data QoS for compatibility with best-effort image publishers:
-  - `http://<PI_IP>:8080/stream?topic=/camera/dashboard&type=mjpeg&qos_profile=sensor_data`
-- Frontend default config now uses this URL pattern in `src/services/config.ts`.
-- Frontend control requests use backend control API endpoints:
-  - `POST /api/model`
-  - `POST /api/replay`
-- Default control API target is `http://<dashboard-host>:8090` and localhost-style env values are normalized to the active browser host for remote sessions.
-- Bounding boxes are rendered from normalized center/size values coming from dashboard telemetry.
-- Those normalized values depend on dashboard bridge `img_w/img_h` matching the detection bbox coordinate basis (currently inference size `640x640`).
-
-## ROS integration path
-
-Current flow:
-
-`ROS topics -> dashboard_bridge_node + web_video_server -> dashboard API/WebSocket/video -> React frontend`
-
-Planned evolution:
-
-- Extract bridge responsibilities into a dedicated backend service layer.
-- Keep frontend contracts stable while decoupling ROS internals.
+The frontend does not import ROS libraries or access the `IST-Thesis-Code`
+filesystem. Integration occurs only through the HTTP, WebSocket, and MJPEG
+runtime contracts described above.
