@@ -1,6 +1,11 @@
 import type { DashboardDataMode } from "@/types/dashboard";
 
-const modeRaw = (import.meta.env.VITE_DASHBOARD_DATA_MODE ?? "backend") as string;
+const runtimeConfig = window.__IST_THESIS_DASHBOARD_CONFIG__ ?? {};
+const modeRaw = String(
+  runtimeConfig.mode ??
+    import.meta.env.VITE_DASHBOARD_DATA_MODE ??
+    "backend",
+);
 const browserHost = window.location.hostname || "127.0.0.1";
 
 function normalizeEndpointHost(rawUrl: string): string {
@@ -20,10 +25,18 @@ function normalizeEndpointHost(rawUrl: string): string {
 export const dashboardConfig = {
   mode: parseMode(modeRaw),
   apiBaseUrl: normalizeEndpointHost(
-    String(import.meta.env.VITE_DASHBOARD_API_BASE_URL ?? `http://${browserHost}:8090`),
+    String(
+      runtimeConfig.apiBaseUrl ??
+        import.meta.env.VITE_DASHBOARD_API_BASE_URL ??
+        `http://${browserHost}:8090`,
+    ),
   ),
   wsUrl: normalizeEndpointHost(
-    String(import.meta.env.VITE_DASHBOARD_WS_URL ?? `ws://${browserHost}:8765`),
+    String(
+      runtimeConfig.wsUrl ??
+        import.meta.env.VITE_DASHBOARD_WS_URL ??
+        `ws://${browserHost}:8765`,
+    ),
   ),
   videoUrl: normalizeEndpointHost(
     `http://${browserHost}:8080/stream?topic=/camera/dashboard&type=mjpeg&qos_profile=sensor_data&quality=45`,

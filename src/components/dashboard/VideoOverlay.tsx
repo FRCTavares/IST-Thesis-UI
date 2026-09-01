@@ -56,32 +56,69 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
   const [streamSrc, setStreamSrc] = useState("");
 
   const detections = useMemo(() => telemetry?.detections ?? [], [telemetry]);
-  const targetTrack = useMemo(() => {
+  const tracks = useMemo(() => telemetry?.tracks ?? [], [telemetry]);
+
+  const targetPresentation = useMemo(() => {
     if (!telemetry) {
       return null;
     }
 
     const tim = telemetry.target_memory;
+    const timState = String(tim?.state ?? "NO_DATA").toUpperCase();
+    const timVisible = tim?.visible === true;
+
     const timTargetId =
       typeof tim?.target_track_id === "number" &&
-      tim.target_track_id > 0 &&
-      tim.state !== "NO_TARGET" &&
-      tim.control_mode !== "NO_CONTROL"
+      tim.target_track_id > 0
         ? tim.target_track_id
         : null;
 
-    const targetId =
-      timTargetId ??
-      (telemetry.target !== null && telemetry.target !== undefined && telemetry.target > 0
+    const selectedTargetId =
+      typeof telemetry.target === "number" &&
+      telemetry.target > 0
         ? telemetry.target
-        : null);
+        : null;
+
+    const targetId = timTargetId ?? selectedTargetId;
 
     if (targetId === null) {
       return null;
     }
 
-    return telemetry.tracks.find((track) => track.id === targetId) ?? null;
+    const track =
+      telemetry.tracks.find((entry) => entry.id === targetId) ?? null;
+
+    if (!track) {
+      return null;
+    }
+
+    if (
+      timTargetId === targetId &&
+      timVisible &&
+      (timState === "LOCKED" || timState === "REACQUIRED")
+    ) {
+      return { track, mode: "confirmed" as const };
+    }
+
+    if (
+      timTargetId === targetId &&
+      timVisible &&
+      timState === "UNCERTAIN"
+    ) {
+      return { track, mode: "uncertain" as const };
+    }
+
+    if (
+      timTargetId === targetId &&
+      (timState === "LOST" || !timVisible)
+    ) {
+      return { track, mode: "lost" as const };
+    }
+
+    return { track, mode: "selected" as const };
   }, [telemetry]);
+
+  const targetTrack = targetPresentation?.track ?? null;
 
   const reportResolution = useCallback(
     (width: number, height: number) => {
@@ -194,10 +231,20 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
       const offX = 0.5 * (canvas.width - drawW);
       const offY = 0.5 * (canvas.height - drawH);
 
-      const displayDetections =
+      // Tracker IDs are the operator-facing person identifiers.
+      // Suppress detector rectangles where ByteTrack already represents
+      // the same person so the phone view does not show duplicate boxes.
+      const displayDetections = detections.filter((det) =>
+        tracks.every((track) => overlapIoU(det, track) < 0.55),
+      );
+
+      // The current TIM/selected target receives its own higher-level
+      // presentation below; all other current ByteTrack candidates use
+      // the ordinary numbered tracker presentation.
+      const displayTracks =
         targetTrack === null
-          ? detections
-          : detections.filter((det) => overlapIoU(det, targetTrack) < 0.55);
+          ? tracks
+          : tracks.filter((track) => track.id !== targetTrack.id);
 
       displayDetections.forEach((det) => {
         const x = offX + (det.x - 0.5 * det.w) * drawW;
@@ -219,32 +266,100 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
         context.fillText(label, x + 4, Math.max(12, y - 4));
       });
 
-      if (targetTrack) {
-        lastTargetBoxRef.current = targetTrack;
+      displayTracks.forEach((track) => {
+        const x = offX + (track.x - 0.5 * track.w) * drawW;
+        const y = offY + (track.y - 0.5 * track.h) * drawH;
+        const w = track.w * drawW;
+        const h = track.h * drawH;
+        const style = overlayStyle("track");
+
+        context.setLineDash([]);
+        context.strokeStyle = style.stroke;
+        context.lineWidth = 2;
+        context.strokeRect(x, y, w, h);
+
+        const label = `#${track.id}`;
+        context.font = "600 14px IBM Plex Mono, monospace";
+
+        const textW =
+          Math.ceil(context.measureText(label).width) + 10;
+
+        const labelX = Math.max(
+          0,
+          Math.min(canvas.width - textW, x),
+        );
+
+        const labelY = Math.max(0, y - 20);
+
+        context.fillStyle = style.fill;
+        context.fillRect(
+          labelX,
+          labelY,
+          textW,
+          20,
+        );
+
+        context.fillStyle = style.text;
+        context.fillText(
+          label,
+          labelX + 5,
+          labelY + 15,
+        );
+      });
+
+      const timState = String(
+        telemetry?.target_memory?.state ?? "NO_DATA",
+      ).toUpperCase();
+
+      if (timState === "NO_TARGET") {
+        lastTargetBoxRef.current = null;
+      }
+
+      if (targetTrack && targetPresentation) {
+        const isConfirmed = targetPresentation.mode === "confirmed";
+
+        if (isConfirmed) {
+          lastTargetBoxRef.current = targetTrack;
+        }
+
         const x = offX + (targetTrack.x - 0.5 * targetTrack.w) * drawW;
         const y = offY + (targetTrack.y - 0.5 * targetTrack.h) * drawH;
         const w = targetTrack.w * drawW;
         const h = targetTrack.h * drawH;
-        const style = overlayStyle("target");
-        context.setLineDash([]);
-        context.strokeStyle = style.stroke;
-        context.lineWidth = 2.5;
-        context.strokeRect(x, y, w, h);
 
-        const tim = telemetry?.target_memory;
-        const usingTim =
-          typeof tim?.target_track_id === "number" &&
-          tim.target_track_id === targetTrack.id &&
-          tim.state !== "NO_TARGET" &&
-          tim.control_mode !== "NO_CONTROL";
-        const label = `${usingTim ? "TIM TARGET" : "TARGET"} ${targetTrack.id}`;
+        const style = overlayStyle(isConfirmed ? "target" : "lost");
+
+        context.strokeStyle = style.stroke;
+        context.lineWidth = isConfirmed ? 2.5 : 2;
+        context.setLineDash(
+          isConfirmed
+            ? []
+            : style.lineDash ?? [7, 4],
+        );
+        context.strokeRect(x, y, w, h);
+        context.setLineDash([]);
+
+        const label =
+          targetPresentation.mode === "confirmed"
+            ? `TIM TARGET #${targetTrack.id}`
+            : targetPresentation.mode === "uncertain"
+              ? `TIM UNCERTAIN #${targetTrack.id}`
+              : targetPresentation.mode === "lost"
+                ? `TIM LOST #${targetTrack.id}`
+                : `SELECTED #${targetTrack.id}`;
+
         context.font = "12px IBM Plex Mono, monospace";
         const textW = Math.ceil(context.measureText(label).width) + 10;
         context.fillStyle = style.fill;
         context.fillRect(x, Math.max(0, y - 18), textW, 18);
         context.fillStyle = style.text;
         context.fillText(label, x + 5, Math.max(13, y - 5));
-      } else if (telemetry?.target !== null && telemetry?.target !== undefined && lastTargetBoxRef.current) {
+      } else if (
+        timState !== "NO_TARGET" &&
+        telemetry?.target !== null &&
+        telemetry?.target !== undefined &&
+        lastTargetBoxRef.current
+      ) {
         const lost = lastTargetBoxRef.current;
         const x = offX + (lost.x - 0.5 * lost.w) * drawW;
         const y = offY + (lost.y - 0.5 * lost.h) * drawH;
@@ -264,10 +379,10 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
     return () => {
       window.removeEventListener("resize", resize);
     };
-  }, [detections, reportResolution, targetTrack, telemetry?.target]);
+  }, [detections, reportResolution, targetPresentation, targetTrack, telemetry?.target, tracks]);
 
   return (
-    <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900">
+    <div className="relative aspect-[4/3] h-auto min-h-0 w-full overflow-hidden rounded-md border border-zinc-700/80 bg-zinc-900 lg:aspect-auto lg:h-full lg:min-h-[320px] lg:rounded-lg">
       <img
         ref={videoRef}
         className="h-full w-full object-contain"
@@ -306,8 +421,8 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
       )}
 
       {videoLoaded && (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-500/45 text-zinc-300">
-          <Crosshair className="h-7 w-7" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-500/45 text-zinc-300 lg:h-14 lg:w-14">
+          <Crosshair className="h-5 w-5 lg:h-7 lg:w-7" />
         </div>
       )}
 

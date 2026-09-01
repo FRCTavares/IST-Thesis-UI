@@ -1,29 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, ChevronRight, LayoutDashboard, LogOut, Radar, ScrollText, Settings, SlidersHorizontal } from "lucide-react";
+import { BarChart3, ChevronRight, LayoutDashboard, LogOut, Radar, ScrollText, Settings } from "lucide-react";
 import { DashboardWebSocketProvider, useDashboardRealtime } from "@/features/dashboard/providers/dashboardWebSocketProvider";
 import { VideoOverlay } from "@/components/dashboard/VideoOverlay";
-import { SystemMetricsGrid } from "@/components/dashboard/SystemMetricsGrid";
+import { FieldHealthStrip } from "@/components/dashboard/FieldHealthStrip";
 import { ChartsWorkspace } from "@/components/dashboard/ChartsWorkspace";
-import { PerceptionTrackingPanel } from "@/components/dashboard/PerceptionTrackingPanel";
 import { StatusPanel } from "@/components/dashboard/StatusPanel";
-import { ControlPanel } from "@/components/dashboard/ControlPanel";
 import { LoggingPanel } from "@/components/dashboard/LoggingPanel";
 import { PanelShell } from "@/components/dashboard/PanelShell";
 import { dashboardConfig } from "@/services/config";
+import { CANONICAL_DETECTOR } from "@/services/runtimeProfile";
 import type {
   DashboardLogEntry,
   DashboardLogLevel,
   DashboardLogSource,
-  DashboardModel,
-  DashboardSupportedModel,
-  DashboardTracker,
   MetricsSnapshot,
 } from "@/types/dashboard";
 import { useDashboardMetrics } from "@/features/dashboard/hooks/useDashboardMetrics";
-import { fetchSupportedModels, requestModelSwitch, requestTargetFocus, requestTrackerSwitch } from "@/features/dashboard/services/dashboardApi";
-import { exportMetricsCsv } from "@/features/dashboard/utils/csv";
 
-type DashboardTab = "overview" | "control" | "charts" | "logging";
+type DashboardTab = "overview" | "charts" | "logging";
 type UiDensity = "compact" | "cozy";
 
 const DEFAULT_LOG_BUFFER_LIMIT = 2000;
@@ -32,15 +26,6 @@ const DASHBOARD_LOGS_PAUSED_STORAGE_KEY = "dashboard.log.paused.v1";
 const DASHBOARD_UI_DENSITY_STORAGE_KEY = "dashboard.ui.density.v1";
 const DASHBOARD_DEFAULT_TAB_STORAGE_KEY = "dashboard.ui.defaultTab.v1";
 const DASHBOARD_LOG_BUFFER_STORAGE_KEY = "dashboard.log.bufferLimit.v1";
-const FALLBACK_MODELS: DashboardModel[] = ["yolov6n", "yolov8s", "yolov8m"];
-
-interface SavedRecording {
-  id: string;
-  createdAtIso: string;
-  model: DashboardModel;
-  tracker: DashboardTracker;
-  samples: MetricsSnapshot[];
-}
 
 interface StreamResolution {
   width: number;
@@ -62,23 +47,16 @@ function inferLogLevel(message: string): DashboardLogLevel {
 }
 
 function isDashboardTab(value: string): value is DashboardTab {
-  return value === "overview" || value === "control" || value === "charts" || value === "logging";
+  return value === "overview" || value === "charts" || value === "logging";
 }
 
 function DashboardPage() {
   const { telemetry, status } = useDashboardRealtime();
-  const [activeModel, setActiveModel] = useState<DashboardModel>("yolov6n");
-  const [availableModels, setAvailableModels] = useState<DashboardModel[]>(FALLBACK_MODELS);
-  const [activeTracker, setActiveTracker] = useState<DashboardTracker>("sort");
-  const [controlStatus, setControlStatus] = useState("Recording idle. Start recording to collect CSV samples.");
+  const activeModel = CANONICAL_DETECTOR;
+  const [controlStatus, setControlStatus] = useState("Ready.");
   const [samples, setSamples] = useState<MetricsSnapshot[]>([]);
-  const [recordedSamples, setRecordedSamples] = useState<MetricsSnapshot[]>([]);
-  const [savedRecordings, setSavedRecordings] = useState<SavedRecording[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isModelSwitching, setIsModelSwitching] = useState(false);
-  const [isTrackerSwitching, setIsTrackerSwitching] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [logEntries, setLogEntries] = useState<DashboardLogEntry[]>([]);
   const [isLogIntakePaused, setIsLogIntakePaused] = useState(false);
@@ -102,30 +80,6 @@ function DashboardPage() {
 
   const metricState = useDashboardMetrics(telemetry, activeModel);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      const response = await fetchSupportedModels();
-      if (cancelled || !response.ok || !response.models) {
-        return;
-      }
-
-      const available = response.models
-        .filter((model: DashboardSupportedModel) => model.available)
-        .map((model: DashboardSupportedModel) => model.key);
-      if (available.length === 0) {
-        return;
-      }
-
-      setAvailableModels(available);
-      setActiveModel((current) => (available.includes(current) ? current : available[0]));
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     try {
@@ -147,7 +101,10 @@ function DashboardPage() {
       const rawDefaultTab = window.localStorage.getItem(DASHBOARD_DEFAULT_TAB_STORAGE_KEY);
       if (rawDefaultTab && isDashboardTab(rawDefaultTab)) {
         setDefaultTab(rawDefaultTab);
-        setActiveTab(rawDefaultTab);
+
+        if (!window.matchMedia("(max-width: 1023px)").matches) {
+          setActiveTab(rawDefaultTab);
+        }
       }
 
       const rawLogs = window.localStorage.getItem(DASHBOARD_LOGS_STORAGE_KEY);
@@ -202,6 +159,23 @@ function DashboardPage() {
     setLogEntries((prev) => prev.slice(0, logBufferLimit));
   }, [logBufferLimit]);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
+
+    const enforceMobileOverview = () => {
+      if (media.matches) {
+        setActiveTab("overview");
+      }
+    };
+
+    enforceMobileOverview();
+    media.addEventListener("change", enforceMobileOverview);
+
+    return () => {
+      media.removeEventListener("change", enforceMobileOverview);
+    };
+  }, []);
+
   const appendLog = (source: DashboardLogSource, message: string, level?: DashboardLogLevel) => {
     if (isLogIntakePaused) {
       return;
@@ -221,6 +195,7 @@ function DashboardPage() {
     if (!snapshot) {
       return;
     }
+
     setSamples((prev: MetricsSnapshot[]) => {
       const next = [...prev, snapshot];
       if (next.length > 2400) {
@@ -228,19 +203,7 @@ function DashboardPage() {
       }
       return next;
     });
-
-    if (!isRecording) {
-      return;
-    }
-
-    setRecordedSamples((prev: MetricsSnapshot[]) => {
-      const next = [...prev, snapshot];
-      if (next.length > 7200) {
-        next.shift();
-      }
-      return next;
-    });
-  }, [isRecording, metricState.snapshot]);
+  }, [metricState.snapshot]);
 
   useEffect(() => {
     if (!status) {
@@ -264,111 +227,15 @@ function DashboardPage() {
     lastControlStatusRef.current = controlStatus;
   }, [controlStatus]);
 
-  const handleModelSwitch = async (model: DashboardModel) => {
-    if (!isLinkUp) {
-      setControlStatus("Cannot switch model while link is down.");
-      return;
-    }
-    setIsModelSwitching(true);
-    const response = await requestModelSwitch(model);
-    if (response.ok) {
-      setActiveModel(model);
-      setControlStatus(`Model switch requested: ${model}`);
-      setIsModelSwitching(false);
-      return;
-    }
-    setControlStatus(
-      `Model switch failed (${dashboardConfig.apiBaseUrl}/api/model): ${response.error ?? "unknown error"}`,
-    );
-    setIsModelSwitching(false);
-  };
-
-  const handleTrackerSwitch = async (tracker: DashboardTracker) => {
-    if (!isLinkUp) {
-      setControlStatus("Cannot switch tracker while link is down.");
-      return;
-    }
-    setIsTrackerSwitching(true);
-    const response = await requestTrackerSwitch(tracker);
-    if (response.ok) {
-      setActiveTracker(tracker);
-      setControlStatus(`Tracker switch requested: ${tracker}`);
-      setIsTrackerSwitching(false);
-      return;
-    }
-    setControlStatus(
-      `Tracker switch failed (${dashboardConfig.apiBaseUrl}/api/tracker): ${response.error ?? "unknown error"}`,
-    );
-    setIsTrackerSwitching(false);
-  };
-
-  const handleStartRecording = () => {
-    if (!isLinkUp) {
-      setControlStatus("Cannot start recording while link is down.");
-      return;
-    }
-    setRecordedSamples([]);
-    setIsRecording(true);
-    setControlStatus("Recording started. Capturing live telemetry samples.");
-    appendLog("recording", "Recording started. Capturing live telemetry samples.", "info");
-  };
-
-  const handleStopRecording = () => {
-    setIsRecording(false);
-    if (recordedSamples.length > 0) {
-      const saved: SavedRecording = {
-        id: `${Date.now()}`,
-        createdAtIso: new Date().toISOString(),
-        model: activeModel,
-        tracker: activeTracker,
-        samples: [...recordedSamples],
-      };
-      setSavedRecordings((prev) => [saved, ...prev]);
-    }
-    setControlStatus(`Recording stopped. Captured ${recordedSamples.length} samples.`);
-    appendLog("recording", `Recording stopped. Captured ${recordedSamples.length} samples.`, "info");
-  };
-
-  const handleDownloadRecording = (id: string) => {
-    const selected = savedRecordings.find((entry) => entry.id === id);
-    if (!selected) {
-      return;
-    }
-    exportMetricsCsv(selected.samples, selected.model);
-    setControlStatus(`Downloaded recording (${selected.samples.length} samples).`);
-    appendLog("recording", `Downloaded recording (${selected.samples.length} samples).`, "info");
-  };
-
-  const handleDeleteRecording = (id: string) => {
-    const selected = savedRecordings.find((entry) => entry.id === id);
-    setSavedRecordings((prev) => prev.filter((entry) => entry.id !== id));
-    if (selected) {
-      setControlStatus(`Deleted recording (${selected.samples.length} samples).`);
-      appendLog("recording", `Deleted recording (${selected.samples.length} samples).`, "warn");
-    }
-  };
-
-  const handleTargetFocus = async (target: number | null) => {
-    if (!isLinkUp) {
-      setControlStatus("Cannot change target focus while link is down.");
-      return;
-    }
-    const response = await requestTargetFocus(target);
-    if (response.ok) {
-      setControlStatus(target === null ? "Target focus set to AUTO." : `Target focus requested: #${target}`);
-      return;
-    }
-    setControlStatus(`Target focus failed (${dashboardConfig.apiBaseUrl}/api/target): ${response.error ?? "unknown error"}`);
-  };
-
   const handleLogout = () => {
     appendLog("system", "Logout requested. Session state cleared.", "warn");
-    setIsRecording(false);
     setSamples([]);
-    setRecordedSamples([]);
-    setSavedRecordings([]);
     setStreamResolution(null);
-    setActiveTab(defaultTab);
+    setActiveTab(
+      window.matchMedia("(max-width: 1023px)").matches
+        ? "overview"
+        : defaultTab,
+    );
     setIsSidebarCollapsed(false);
     setIsSettingsOpen(false);
     setControlStatus("Logged out. Session state cleared.");
@@ -409,7 +276,7 @@ function DashboardPage() {
 
   return (
     <div className={`min-h-screen w-full ui-density-${uiDensity}`}>
-      <aside className="fixed inset-y-0 left-0 z-40 flex w-[92px] flex-col items-center justify-between border-r border-zinc-700/80 bg-zinc-800/70 py-4">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[92px] flex-col items-center justify-between border-r border-zinc-700/80 bg-zinc-800/70 py-4 lg:flex">
         <div className="flex flex-col items-center gap-2">
           <div className="flex flex-col items-center gap-1 select-none" aria-hidden="true">
             <Radar className="h-6 w-6 text-zinc-300/90" />
@@ -429,19 +296,6 @@ function DashboardPage() {
             title="Overview"
           >
             <LayoutDashboard className="h-6 w-6" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("control")}
-            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${activeTab === "control"
-              ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
-              : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-              }`}
-            aria-label="Control"
-            title="Control"
-          >
-            <SlidersHorizontal className="h-6 w-6" />
           </button>
 
           <button
@@ -495,10 +349,55 @@ function DashboardPage() {
         </div>
       </aside>
 
-      <main className="min-h-screen pl-[92px]">
-        <div className={`mx-auto w-full max-w-[1640px] ${uiDensity === "compact" ? "p-2 lg:p-3" : "p-3 lg:p-4"}`}>
+      <main className="min-h-screen lg:pl-[92px]">
+        <div className={`mx-auto w-full max-w-[1640px] ${uiDensity === "compact" ? "p-1.5 sm:p-2 lg:p-3" : "p-1.5 sm:p-2 lg:p-4"}`}>
+          <div className="mb-1 flex h-9 items-center justify-between rounded-md border border-zinc-700/80 bg-zinc-800/70 px-2 lg:hidden">
+            <div className="flex items-center gap-2">
+              <Radar className="h-4 w-4 text-zinc-300" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                UAV
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`flex h-7 items-center gap-1.5 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-[0.1em] ${
+                  isLinkUp
+                    ? "border-emerald-800/70 bg-emerald-950/35 text-emerald-300"
+                    : "border-red-900/70 bg-red-950/35 text-red-300"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    isLinkUp ? "bg-emerald-400" : "bg-red-400"
+                  }`}
+                />
+                {isLinkUp ? "Live" : "Offline"}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900/70 text-zinc-400"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings className="h-3.5 w-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-red-900/70 bg-red-950/35 text-red-300"
+                aria-label="Disconnect"
+                title="Disconnect"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
           {isSidebarCollapsed && (
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 hidden justify-end lg:flex">
               <button
                 type="button"
                 onClick={() => setIsSidebarCollapsed(false)}
@@ -512,38 +411,38 @@ function DashboardPage() {
           )}
 
           {activeTab === "overview" ? (
-            <div className={`grid grid-cols-1 gap-3 transition-[grid-template-columns] duration-300 ease-in-out ${isSidebarCollapsed ? "lg:grid-cols-1" : "lg:grid-cols-[2.2fr_1fr]"} lg:min-h-[calc(100vh-2rem)] lg:items-stretch`}>
-              <section className="grid h-full grid-rows-[minmax(0,1fr)_auto_auto] gap-3">
-                <PanelShell title="Live Camera Feed" className="flex h-full flex-col" contentClassName="min-h-0 flex-1 p-2.5">
-                  <VideoOverlay telemetry={telemetry} videoUrl={dashboardConfig.videoUrl} onResolutionChange={setStreamResolution} />
+            <div className="grid gap-1.5 lg:gap-3">
+              <div
+                className={`grid grid-cols-1 gap-2 transition-[grid-template-columns] duration-300 ease-in-out lg:gap-3 ${
+                  isSidebarCollapsed
+                    ? "lg:grid-cols-1"
+                    : "lg:grid-cols-[2.2fr_1fr]"
+                } lg:items-stretch`}
+              >
+                <PanelShell
+                  title="Live Camera Feed"
+                  className="flex h-full flex-col overflow-hidden"
+                  headerClassName="hidden lg:flex"
+                  contentClassName="flex-1 p-0 lg:p-2.5"
+                >
+                  <VideoOverlay
+                    telemetry={telemetry}
+                    videoUrl={dashboardConfig.videoUrl}
+                    onResolutionChange={setStreamResolution}
+                  />
                 </PanelShell>
-                <PerceptionTrackingPanel snapshot={metricState.snapshot} telemetry={telemetry} />
-                <SystemMetricsGrid snapshot={metricState.snapshot} />
-              </section>
 
-              {!isSidebarCollapsed && (
-                <StatusPanel status={status} mode={dashboardConfig.mode} telemetry={telemetry} snapshot={metricState.snapshot} activeModel={activeModel} availableModels={availableModels} activeTracker={activeTracker} onModelSwitch={handleModelSwitch} onTrackerSwitch={handleTrackerSwitch} onStartRecording={handleStartRecording} onStopRecording={handleStopRecording} isRecording={isRecording} recordedCount={recordedSamples.length} onCloseSidebar={() => setIsSidebarCollapsed(true)} isModelSwitching={isModelSwitching} isTrackerSwitching={isTrackerSwitching} controlStatus={controlStatus} recordings={savedRecordings.map((entry) => ({ id: entry.id, createdAtIso: entry.createdAtIso, model: entry.model, tracker: entry.tracker, sampleCount: entry.samples.length }))} onDownloadRecording={handleDownloadRecording} onDeleteRecording={handleDeleteRecording} isLinkUp={isLinkUp} currentResolutionLabel={inferenceResolutionLabel} />
-              )}
-            </div>
-          ) : null}
+                {!isSidebarCollapsed && (
+                  <StatusPanel
+                    status={status}
+                    telemetry={telemetry}
+                    isLinkUp={isLinkUp}
+                    currentResolutionLabel={inferenceResolutionLabel}
+                  />
+                )}
+              </div>
 
-          {activeTab === "control" ? (
-            <div className="grid grid-cols-1 gap-3 lg:min-h-[calc(100vh-2rem)] lg:items-stretch">
-              <ControlPanel
-                activeModel={activeModel}
-                availableModels={availableModels}
-                activeTracker={activeTracker}
-                onModelSwitch={handleModelSwitch}
-                onTrackerSwitch={handleTrackerSwitch}
-                onTargetFocus={handleTargetFocus}
-                availableTrackIds={telemetry?.tracks.map((track) => track.id) ?? []}
-                currentTargetId={telemetry?.target ?? null}
-                isModelSwitching={isModelSwitching}
-                isTrackerSwitching={isTrackerSwitching}
-                controlStatus={controlStatus}
-                isLinkUp={isLinkUp}
-                currentResolutionLabel={inferenceResolutionLabel}
-              />
+              <FieldHealthStrip snapshot={metricState.snapshot} />
             </div>
           ) : null}
 
@@ -608,7 +507,6 @@ function DashboardPage() {
                   className="h-9 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 text-sm text-zinc-100 transition-all focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
                 >
                   <option value="overview">Overview</option>
-                  <option value="control">Control</option>
                   <option value="charts">Charts</option>
                   <option value="logging">Logging</option>
                 </select>

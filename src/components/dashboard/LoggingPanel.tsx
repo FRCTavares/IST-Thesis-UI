@@ -4,7 +4,7 @@ import { PanelShell } from "@/components/dashboard/PanelShell";
 import type { DashboardLogEntry, DashboardLogLevel, DashboardLogSource } from "@/types/dashboard";
 
 const levelChoices: Array<DashboardLogLevel | "all"> = ["all", "debug", "info", "warn", "error"];
-const sourceChoices: Array<DashboardLogSource | "all"> = ["all", "socket", "control", "recording", "system"];
+const sourceChoices: Array<DashboardLogSource | "all"> = ["all", "socket", "control", "system"];
 
 interface LoggingPanelProps {
   entries: DashboardLogEntry[];
@@ -59,7 +59,7 @@ export function LoggingPanel({
         acc[entry.source] += 1;
         return acc;
       },
-      { socket: 0, control: 0, recording: 0, system: 0 },
+      { socket: 0, control: 0, system: 0 },
     );
   }, [filteredEntries]);
 
@@ -182,7 +182,7 @@ export function LoggingPanel({
         </PanelShell>
 
         <PanelShell title="Source Distribution" contentClassName="grid gap-2 p-3">
-          {(["socket", "control", "recording", "system"] as DashboardLogSource[]).map((source) => {
+          {(["socket", "control", "system"] as DashboardLogSource[]).map((source) => {
             const count = sourceCounts[source];
             const pct = Math.round((count / maxSourceCount) * 100);
             return (
@@ -190,7 +190,7 @@ export function LoggingPanel({
                 <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-400">{source}</div>
                 <div className="h-2.5 overflow-hidden rounded-full border border-zinc-700/80 bg-zinc-900/80">
                   <div
-                    className={`h-full ${source === "socket" ? "bg-zinc-400" : source === "control" ? "bg-zinc-300" : source === "recording" ? "bg-amber-400" : "bg-red-400"}`}
+                    className={`h-full ${source === "socket" ? "bg-zinc-400" : source === "control" ? "bg-zinc-300" : "bg-red-400"}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

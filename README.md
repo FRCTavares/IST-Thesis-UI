@@ -81,6 +81,29 @@ The live data path is therefore:
 `mock` and `offline` modes are standalone frontend modes and do not require
 `IST-Thesis-Code` or ROS.
 
+## Runtime packaging
+
+The authoritative launcher serves the prebuilt `dist/` tree by default.
+
+Normal field/runtime behavior:
+
+- `npm run build` is completed before deployment;
+- `tools/start_dashboard.sh` serves only the generated static files;
+- the server is Python standard-library `http.server`;
+- no Vite, esbuild, npm operation, compilation, download, CDN, or internet
+  access is required while the field UI is running;
+- API, WebSocket, and video hosts continue to follow the browser-visible
+  dashboard host;
+- launch-time mode/API/WebSocket overrides are provided through generated
+  `dist/runtime-config.js`, so changing the Pi WLAN address does not require a
+  frontend rebuild.
+
+Use `tools/start_dashboard.sh --dev` only when Vite development behavior is
+specifically required.
+
+The runtime requires an existing `dist/index.html` and fails closed if the
+frontend has not been built before launch.
+
 ## Environment variables
 
 Use `.env` if explicit endpoint overrides are required; see `.env.example`.

@@ -83,6 +83,7 @@ export interface TargetMemoryStatus {
   state?: string;
   control_mode?: string;
   target_track_id?: number | null;
+  visible?: boolean;
   quality?: number;
   reason?: string;
   lat_ms?: number;
@@ -133,7 +134,7 @@ export interface DashboardTelemetry {
 }
 
 export type DashboardLogLevel = "debug" | "info" | "warn" | "error";
-export type DashboardLogSource = "socket" | "control" | "recording" | "system";
+export type DashboardLogSource = "socket" | "control" | "system";
 
 export interface DashboardLogEntry {
   id: string;

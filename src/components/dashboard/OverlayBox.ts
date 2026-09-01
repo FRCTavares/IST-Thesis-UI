@@ -1,4 +1,4 @@
-export type OverlayKind = "detection" | "target" | "lost";
+export type OverlayKind = "detection" | "track" | "target" | "lost";
 
 export interface OverlayStyle {
   stroke: string;
@@ -8,6 +8,14 @@ export interface OverlayStyle {
 }
 
 export function overlayStyle(kind: OverlayKind): OverlayStyle {
+  if (kind === "track") {
+    return {
+      stroke: "#38bdf8",
+      fill: "rgba(3, 105, 161, 0.92)",
+      text: "#f0f9ff",
+    };
+  }
+
   if (kind === "target") {
     return {
       stroke: "#22c55e",

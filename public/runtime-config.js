@@ -1,0 +1,1 @@
+window.__IST_THESIS_DASHBOARD_CONFIG__ = {};
