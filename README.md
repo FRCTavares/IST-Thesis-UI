@@ -23,29 +23,41 @@ Inside `src/`:
 
 ## Run locally
 
-From repository root:
+The authoritative frontend launcher is owned by this repository:
 
 ```bash
-cd live-ui
-npm install
-npm run dev
+./tools/start_dashboard.sh --mode backend
 ```
 
-Build for production:
+For the first run, or after dependency changes:
 
 ```bash
-cd live-ui
+./tools/start_dashboard.sh --install --mode backend
+```
+
+Standalone development modes do not require ROS or `IST-Thesis-Code`:
+
+```bash
+./tools/start_dashboard.sh --mode mock
+./tools/start_dashboard.sh --mode offline
+```
+
+The launcher defaults to `127.0.0.1:5173`. Override the bind host or port explicitly when needed:
+
+```bash
+./tools/start_dashboard.sh --mode backend --host 0.0.0.0 --port 5173
+```
+
+Binding to `0.0.0.0` exposes the frontend on reachable interfaces and should only be used on the intended field network. Backend API, WebSocket, video, firewall, and access-control policy remain separate `IST-Thesis-Code` contracts.
+
+Launcher state is written outside the repository under `${XDG_STATE_HOME:-$HOME/.local/state}/ist-thesis-ui/`. The launcher executes the actual Vite Node process in the foreground rather than backgrounding an `npm run dev` wrapper, so signals and process shutdown remain deterministic.
+
+Production build validation remains available directly:
+
+```bash
+npm ci
 npm run build
-npm run preview
 ```
-
-For normal thesis operation, prefer the repository launcher:
-
-```bash
-./tools/start_ui_stack.sh --install
-```
-
-Later runs can omit `--install` while `live-ui/node_modules/` remains current.
 
 ## Environment variables
 
