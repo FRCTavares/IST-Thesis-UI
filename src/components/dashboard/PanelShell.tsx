@@ -19,7 +19,12 @@ export function PanelShell({
   children,
 }: PanelShellProps) {
   return (
-    <section className={cn("panel-shell rounded-lg border border-zinc-700/80 bg-zinc-800/70", className)}>
+    <section
+      className={cn(
+        "panel-shell rounded-lg border border-zinc-700/80 bg-zinc-800/70",
+        className,
+      )}
+    >
       {(title || action) && (
         <div
           className={cn(
@@ -27,11 +32,19 @@ export function PanelShell({
             headerClassName,
           )}
         >
-          {title ? <div className="text-[10px] font-semibold uppercase tracking-[0.16em] leading-none text-zinc-400 lg:text-[11px]">{title}</div> : <span />}
+          {title ? (
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] leading-none text-zinc-400 lg:text-[11px]">
+              {title}
+            </div>
+          ) : (
+            <span />
+          )}
           {action}
         </div>
       )}
-      <div className={cn("panel-shell-content p-2 lg:p-3", contentClassName)}>{children}</div>
+      <div className={cn("panel-shell-content p-2 lg:p-3", contentClassName)}>
+        {children}
+      </div>
     </section>
   );
 }

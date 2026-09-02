@@ -3,7 +3,10 @@ import type { DashboardTelemetry } from "@/types/dashboard";
 import { buildMockTelemetry } from "@/features/dashboard/mock/mockPayload";
 
 export interface DashboardSocketClient {
-  start(onData: (payload: DashboardTelemetry) => void, onStatus: (message: string) => void): void;
+  start(
+    onData: (payload: DashboardTelemetry) => void,
+    onStatus: (message: string) => void,
+  ): void;
   stop(): void;
 }
 
@@ -55,7 +58,10 @@ function createBackendSocketClient(wsUrl: string): DashboardSocketClient {
   let reconnectTimer: number | null = null;
   let shouldRun = false;
 
-  const connect = (onData: (payload: DashboardTelemetry) => void, onStatus: (message: string) => void) => {
+  const connect = (
+    onData: (payload: DashboardTelemetry) => void,
+    onStatus: (message: string) => void,
+  ) => {
     ws = new WebSocket(wsUrl);
     onStatus(`Connecting to ${wsUrl}...`);
 
@@ -75,7 +81,10 @@ function createBackendSocketClient(wsUrl: string): DashboardSocketClient {
     ws.onclose = () => {
       onStatus("WebSocket disconnected. Retrying...");
       if (shouldRun) {
-        reconnectTimer = window.setTimeout(() => connect(onData, onStatus), 1200);
+        reconnectTimer = window.setTimeout(
+          () => connect(onData, onStatus),
+          1200,
+        );
       }
     };
 

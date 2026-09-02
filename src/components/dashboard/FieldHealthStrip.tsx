@@ -10,10 +10,7 @@ type HealthState = {
   tone: "ok" | "warn" | "error" | "info" | "neutral";
 };
 
-function formatNumber(
-  value: number | null | undefined,
-  digits = 1,
-): string {
+function formatNumber(value: number | null | undefined, digits = 1): string {
   return value === null || value === undefined || !Number.isFinite(value)
     ? "—"
     : value.toFixed(digits);
@@ -24,13 +21,10 @@ function deriveHealth(snapshot: MetricsSnapshot | null): HealthState {
     return { label: "Waiting", tone: "neutral" };
   }
 
-  const detectorFps =
-    snapshot.det_out_fps_roll ??
-    snapshot.det_out_fps_inst;
+  const detectorFps = snapshot.det_out_fps_roll ?? snapshot.det_out_fps_inst;
 
   const cameraFps =
-    snapshot.camera_input_fps_roll ??
-    snapshot.camera_input_fps_inst;
+    snapshot.camera_input_fps_roll ?? snapshot.camera_input_fps_inst;
 
   const e2eP95 = snapshot.e2e_det_p95_ms;
   const e2eWarn = snapshot.e2e_det_warn_ms;
@@ -40,11 +34,7 @@ function deriveHealth(snapshot: MetricsSnapshot | null): HealthState {
     return { label: "Thermal", tone: "error" };
   }
 
-  if (
-    e2eP95 !== null &&
-    e2eWarn !== null &&
-    e2eP95 > e2eWarn
-  ) {
+  if (e2eP95 !== null && e2eWarn !== null && e2eP95 > e2eWarn) {
     return { label: "High latency", tone: "warn" };
   }
 
@@ -64,22 +54,13 @@ function deriveHealth(snapshot: MetricsSnapshot | null): HealthState {
   return { label: "Nominal", tone: "ok" };
 }
 
-export function FieldHealthStrip({
-  snapshot,
-}: FieldHealthStripProps) {
+export function FieldHealthStrip({ snapshot }: FieldHealthStripProps) {
   const detectorFps =
-    snapshot?.det_out_fps_roll ??
-    snapshot?.det_out_fps_inst ??
-    null;
+    snapshot?.det_out_fps_roll ?? snapshot?.det_out_fps_inst ?? null;
 
-  const e2eP95 =
-    snapshot?.e2e_det_p95_ms ??
-    snapshot?.e2e_det_ms_inst ??
-    null;
+  const e2eP95 = snapshot?.e2e_det_p95_ms ?? snapshot?.e2e_det_ms_inst ?? null;
 
-  const temperature =
-    snapshot?.temp_c_inst ??
-    null;
+  const temperature = snapshot?.temp_c_inst ?? null;
 
   const health = deriveHealth(snapshot);
 
@@ -116,9 +97,7 @@ export function FieldHealthStrip({
         </span>
       </div>
 
-      <StatusBadge tone={health.tone}>
-        {health.label}
-      </StatusBadge>
+      <StatusBadge tone={health.tone}>{health.label}</StatusBadge>
     </section>
   );
 }

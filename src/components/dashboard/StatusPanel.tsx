@@ -67,12 +67,10 @@ export function StatusPanel({
       statusLower,
     );
 
-  const explicitlyConnected =
-    /(connected|live|open)/.test(statusLower);
+  const explicitlyConnected = /(connected|live|open)/.test(statusLower);
 
   const computedHealthy =
-    hasTelemetry ||
-    (explicitlyConnected && !explicitlyDisconnected);
+    hasTelemetry || (explicitlyConnected && !explicitlyDisconnected);
 
   const isHealthy = isLinkUp ?? computedHealthy;
 
@@ -81,19 +79,16 @@ export function StatusPanel({
   const controlMode = String(tim?.control_mode ?? "--");
 
   const timTargetId =
-    typeof tim?.target_track_id === "number" &&
-    tim.target_track_id > 0
+    typeof tim?.target_track_id === "number" && tim.target_track_id > 0
       ? tim.target_track_id
       : null;
 
   const bootstrapTargetId =
-    typeof telemetry?.target === "number" &&
-    telemetry.target > 0
+    typeof telemetry?.target === "number" && telemetry.target > 0
       ? telemetry.target
       : null;
 
-  const selectedTargetId =
-    timTargetId ?? bootstrapTargetId;
+  const selectedTargetId = timTargetId ?? bootstrapTargetId;
 
   const timVisible = tim?.visible === true;
   const timStateUpper = timState.toUpperCase();
@@ -105,10 +100,7 @@ export function StatusPanel({
       ? timTargetId
       : null;
 
-  const timMessage = operatorTimMessage(
-    timState,
-    confirmedTargetId !== null,
-  );
+  const timMessage = operatorTimMessage(timState, confirmedTargetId !== null);
 
   return (
     <aside className="h-auto lg:h-full">
@@ -130,9 +122,7 @@ export function StatusPanel({
                 <WifiOff className="h-4 w-4 text-red-300" />
               )}
 
-              <span>
-                {isHealthy ? "Connected" : "Disconnected"}
-              </span>
+              <span>{isHealthy ? "Connected" : "Disconnected"}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -187,9 +177,7 @@ export function StatusPanel({
 
             <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] font-semibold text-zinc-300">
               <span className="text-zinc-600">REF</span>
-              <span>
-                {timTargetId !== null ? `#${timTargetId}` : "—"}
-              </span>
+              <span>{timTargetId !== null ? `#${timTargetId}` : "—"}</span>
 
               <span className="text-zinc-700">·</span>
 
@@ -238,9 +226,7 @@ export function StatusPanel({
               </div>
             </div>
 
-            <div className="mt-2 text-[11px] text-zinc-400">
-              {timMessage}
-            </div>
+            <div className="mt-2 text-[11px] text-zinc-400">{timMessage}</div>
           </div>
         </section>
       </PanelShell>

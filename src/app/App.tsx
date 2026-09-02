@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, ChevronRight, LayoutDashboard, LogOut, Radar, ScrollText, Settings } from "lucide-react";
-import { DashboardWebSocketProvider, useDashboardRealtime } from "@/features/dashboard/providers/dashboardWebSocketProvider";
+import {
+  BarChart3,
+  ChevronRight,
+  LayoutDashboard,
+  LogOut,
+  Radar,
+  ScrollText,
+  Settings,
+} from "lucide-react";
+import {
+  DashboardWebSocketProvider,
+  useDashboardRealtime,
+} from "@/features/dashboard/providers/dashboardWebSocketProvider";
 import { VideoOverlay } from "@/components/dashboard/VideoOverlay";
 import { FieldHealthStrip } from "@/components/dashboard/FieldHealthStrip";
 import { ChartsWorkspace } from "@/components/dashboard/ChartsWorkspace";
@@ -40,7 +51,11 @@ function inferLogLevel(message: string): DashboardLogLevel {
   if (/(warn|degrad|retry|slow|closing)/.test(text)) {
     return "warn";
   }
-  if (/(started|stopped|requested|connected|live|downloaded|deleted|cleared)/.test(text)) {
+  if (
+    /(started|stopped|requested|connected|live|downloaded|deleted|cleared)/.test(
+      text,
+    )
+  ) {
     return "info";
   }
   return "debug";
@@ -62,29 +77,39 @@ function DashboardPage() {
   const [isLogIntakePaused, setIsLogIntakePaused] = useState(false);
   const [uiDensity, setUiDensity] = useState<UiDensity>("cozy");
   const [defaultTab, setDefaultTab] = useState<DashboardTab>("overview");
-  const [logBufferLimit, setLogBufferLimit] = useState(DEFAULT_LOG_BUFFER_LIMIT);
-  const [streamResolution, setStreamResolution] = useState<StreamResolution | null>(null);
+  const [logBufferLimit, setLogBufferLimit] = useState(
+    DEFAULT_LOG_BUFFER_LIMIT,
+  );
+  const [streamResolution, setStreamResolution] =
+    useState<StreamResolution | null>(null);
 
   const lastSocketStatusRef = useRef<string | null>(null);
   const lastControlStatusRef = useRef<string | null>(null);
 
   const hasTelemetry = Boolean(telemetry);
   const statusLower = status.toLowerCase();
-  const explicitlyDisconnected = /(disconnected|retry|error|fail|closed|closing|connecting)/.test(statusLower);
+  const explicitlyDisconnected =
+    /(disconnected|retry|error|fail|closed|closing|connecting)/.test(
+      statusLower,
+    );
   const explicitlyConnected = /(connected|live|open)/.test(statusLower);
-  const isLinkUp = hasTelemetry || (explicitlyConnected && !explicitlyDisconnected);
-  const streamResolutionLabel = streamResolution ? `${streamResolution.width}x${streamResolution.height}` : "Unknown";
+  const isLinkUp =
+    hasTelemetry || (explicitlyConnected && !explicitlyDisconnected);
+  const streamResolutionLabel = streamResolution
+    ? `${streamResolution.width}x${streamResolution.height}`
+    : "Unknown";
   const inferenceResolutionLabel = telemetry?.inference_resolution
     ? `${telemetry.inference_resolution.width}x${telemetry.inference_resolution.height}`
     : streamResolutionLabel;
 
   const metricState = useDashboardMetrics(telemetry, activeModel);
 
-
   useEffect(() => {
     try {
       let loadedBufferLimit = DEFAULT_LOG_BUFFER_LIMIT;
-      const rawBufferLimit = window.localStorage.getItem(DASHBOARD_LOG_BUFFER_STORAGE_KEY);
+      const rawBufferLimit = window.localStorage.getItem(
+        DASHBOARD_LOG_BUFFER_STORAGE_KEY,
+      );
       if (rawBufferLimit) {
         const parsedLimit = Number(rawBufferLimit);
         if ([500, 1000, 2000, 5000].includes(parsedLimit)) {
@@ -93,12 +118,16 @@ function DashboardPage() {
         }
       }
 
-      const rawDensity = window.localStorage.getItem(DASHBOARD_UI_DENSITY_STORAGE_KEY);
+      const rawDensity = window.localStorage.getItem(
+        DASHBOARD_UI_DENSITY_STORAGE_KEY,
+      );
       if (rawDensity === "compact" || rawDensity === "cozy") {
         setUiDensity(rawDensity);
       }
 
-      const rawDefaultTab = window.localStorage.getItem(DASHBOARD_DEFAULT_TAB_STORAGE_KEY);
+      const rawDefaultTab = window.localStorage.getItem(
+        DASHBOARD_DEFAULT_TAB_STORAGE_KEY,
+      );
       if (rawDefaultTab && isDashboardTab(rawDefaultTab)) {
         setDefaultTab(rawDefaultTab);
 
@@ -112,7 +141,12 @@ function DashboardPage() {
         const parsed = JSON.parse(rawLogs) as DashboardLogEntry[];
         if (Array.isArray(parsed)) {
           const sanitized = parsed
-            .filter((entry) => entry && typeof entry.message === "string" && typeof entry.timestamp_iso === "string")
+            .filter(
+              (entry) =>
+                entry &&
+                typeof entry.message === "string" &&
+                typeof entry.timestamp_iso === "string",
+            )
             .slice(0, loadedBufferLimit);
           if (sanitized.length > 0) {
             setLogEntries(sanitized);
@@ -120,7 +154,9 @@ function DashboardPage() {
         }
       }
 
-      const rawPaused = window.localStorage.getItem(DASHBOARD_LOGS_PAUSED_STORAGE_KEY);
+      const rawPaused = window.localStorage.getItem(
+        DASHBOARD_LOGS_PAUSED_STORAGE_KEY,
+      );
       if (rawPaused === "1") {
         setIsLogIntakePaused(true);
       }
@@ -131,7 +167,10 @@ function DashboardPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(DASHBOARD_LOGS_STORAGE_KEY, JSON.stringify(logEntries));
+      window.localStorage.setItem(
+        DASHBOARD_LOGS_STORAGE_KEY,
+        JSON.stringify(logEntries),
+      );
     } catch {
       // Ignore storage write errors when localStorage is unavailable.
     }
@@ -139,7 +178,10 @@ function DashboardPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(DASHBOARD_LOGS_PAUSED_STORAGE_KEY, isLogIntakePaused ? "1" : "0");
+      window.localStorage.setItem(
+        DASHBOARD_LOGS_PAUSED_STORAGE_KEY,
+        isLogIntakePaused ? "1" : "0",
+      );
     } catch {
       // Ignore storage write errors when localStorage is unavailable.
     }
@@ -148,8 +190,14 @@ function DashboardPage() {
   useEffect(() => {
     try {
       window.localStorage.setItem(DASHBOARD_UI_DENSITY_STORAGE_KEY, uiDensity);
-      window.localStorage.setItem(DASHBOARD_DEFAULT_TAB_STORAGE_KEY, defaultTab);
-      window.localStorage.setItem(DASHBOARD_LOG_BUFFER_STORAGE_KEY, String(logBufferLimit));
+      window.localStorage.setItem(
+        DASHBOARD_DEFAULT_TAB_STORAGE_KEY,
+        defaultTab,
+      );
+      window.localStorage.setItem(
+        DASHBOARD_LOG_BUFFER_STORAGE_KEY,
+        String(logBufferLimit),
+      );
     } catch {
       // Ignore storage write errors when localStorage is unavailable.
     }
@@ -176,7 +224,11 @@ function DashboardPage() {
     };
   }, []);
 
-  const appendLog = (source: DashboardLogSource, message: string, level?: DashboardLogLevel) => {
+  const appendLog = (
+    source: DashboardLogSource,
+    message: string,
+    level?: DashboardLogLevel,
+  ) => {
     if (isLogIntakePaused) {
       return;
     }
@@ -242,7 +294,9 @@ function DashboardPage() {
   };
 
   const handleExportLogsJson = () => {
-    const blob = new Blob([JSON.stringify(logEntries, null, 2)], { type: "application/json;charset=utf-8" });
+    const blob = new Blob([JSON.stringify(logEntries, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -256,9 +310,16 @@ function DashboardPage() {
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const rows = [
       ["timestamp_iso", "level", "source", "message"],
-      ...logEntries.map((entry) => [entry.timestamp_iso, entry.level, entry.source, entry.message]),
+      ...logEntries.map((entry) => [
+        entry.timestamp_iso,
+        entry.level,
+        entry.source,
+        entry.message,
+      ]),
     ];
-    const csv = rows.map((row) => row.map((cell) => escape(String(cell))).join(",")).join("\n");
+    const csv = rows
+      .map((row) => row.map((cell) => escape(String(cell))).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -278,9 +339,14 @@ function DashboardPage() {
     <div className={`min-h-screen w-full ui-density-${uiDensity}`}>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[92px] flex-col items-center justify-between border-r border-zinc-700/80 bg-zinc-800/70 py-4 lg:flex">
         <div className="flex flex-col items-center gap-2">
-          <div className="flex flex-col items-center gap-1 select-none" aria-hidden="true">
+          <div
+            className="flex flex-col items-center gap-1 select-none"
+            aria-hidden="true"
+          >
             <Radar className="h-6 w-6 text-zinc-300/90" />
-            <div className="text-[9px] font-semibold uppercase tracking-[0.22em] text-zinc-500">UAV</div>
+            <div className="text-[9px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+              UAV
+            </div>
           </div>
 
           <div className="mb-2 mt-2 h-px w-10 bg-zinc-700/80" />
@@ -288,10 +354,11 @@ function DashboardPage() {
           <button
             type="button"
             onClick={() => setActiveTab("overview")}
-            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${activeTab === "overview"
-              ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
-              : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-              }`}
+            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${
+              activeTab === "overview"
+                ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
+                : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+            }`}
             aria-label="Overview"
             title="Overview"
           >
@@ -301,10 +368,11 @@ function DashboardPage() {
           <button
             type="button"
             onClick={() => setActiveTab("charts")}
-            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${activeTab === "charts"
-              ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
-              : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-              }`}
+            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${
+              activeTab === "charts"
+                ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
+                : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+            }`}
             aria-label="Charts"
             title="Charts"
           >
@@ -314,10 +382,11 @@ function DashboardPage() {
           <button
             type="button"
             onClick={() => setActiveTab("logging")}
-            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${activeTab === "logging"
-              ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
-              : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-              }`}
+            className={`flex h-12 w-12 items-center justify-center rounded-lg border transition-all ${
+              activeTab === "logging"
+                ? "border-zinc-500/70 bg-zinc-700/40 text-zinc-100 shadow-[0_0_14px_rgba(100,116,139,0.18)]"
+                : "border-zinc-800 bg-zinc-900/65 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+            }`}
             aria-label="Logging"
             title="Logging"
           >
@@ -350,7 +419,9 @@ function DashboardPage() {
       </aside>
 
       <main className="min-h-screen lg:pl-[92px]">
-        <div className={`mx-auto w-full max-w-[1640px] ${uiDensity === "compact" ? "p-1.5 sm:p-2 lg:p-3" : "p-1.5 sm:p-2 lg:p-4"}`}>
+        <div
+          className={`mx-auto w-full max-w-[1640px] ${uiDensity === "compact" ? "p-1.5 sm:p-2 lg:p-3" : "p-1.5 sm:p-2 lg:p-4"}`}
+        >
           <div className="mb-1 flex h-9 items-center justify-between rounded-md border border-zinc-700/80 bg-zinc-800/70 px-2 lg:hidden">
             <div className="flex items-center gap-2">
               <Radar className="h-4 w-4 text-zinc-300" />
@@ -471,28 +542,34 @@ function DashboardPage() {
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-md rounded-lg border border-zinc-700/80 bg-zinc-900/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
-            <div className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Settings</div>
+            <div className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              Settings
+            </div>
             <div className="space-y-3 rounded-md border border-zinc-700/70 bg-zinc-900/60 p-3 text-sm text-zinc-300">
               <div className="space-y-1">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Density</div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  Density
+                </div>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setUiDensity("compact")}
-                    className={`h-8 rounded-md border px-3 text-xs transition-all ${uiDensity === "compact"
-                      ? "border-zinc-500 bg-zinc-700/50 text-zinc-100"
-                      : "border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-                      }`}
+                    className={`h-8 rounded-md border px-3 text-xs transition-all ${
+                      uiDensity === "compact"
+                        ? "border-zinc-500 bg-zinc-700/50 text-zinc-100"
+                        : "border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                    }`}
                   >
                     Compact
                   </button>
                   <button
                     type="button"
                     onClick={() => setUiDensity("cozy")}
-                    className={`h-8 rounded-md border px-3 text-xs transition-all ${uiDensity === "cozy"
-                      ? "border-zinc-500 bg-zinc-700/50 text-zinc-100"
-                      : "border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-                      }`}
+                    className={`h-8 rounded-md border px-3 text-xs transition-all ${
+                      uiDensity === "cozy"
+                        ? "border-zinc-500 bg-zinc-700/50 text-zinc-100"
+                        : "border-zinc-700 bg-zinc-900/70 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                    }`}
                   >
                     Cozy
                   </button>
@@ -500,10 +577,14 @@ function DashboardPage() {
               </div>
 
               <label className="grid gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Default Tab</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  Default Tab
+                </span>
                 <select
                   value={defaultTab}
-                  onChange={(e) => setDefaultTab(e.target.value as DashboardTab)}
+                  onChange={(e) =>
+                    setDefaultTab(e.target.value as DashboardTab)
+                  }
                   className="h-9 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 text-sm text-zinc-100 transition-all focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
                 >
                   <option value="overview">Overview</option>
@@ -513,7 +594,9 @@ function DashboardPage() {
               </label>
 
               <label className="grid gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Log Buffer Limit</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  Log Buffer Limit
+                </span>
                 <select
                   value={logBufferLimit}
                   onChange={(e) => setLogBufferLimit(Number(e.target.value))}

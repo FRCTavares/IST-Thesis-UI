@@ -17,9 +17,7 @@ export async function requestTargetFocus(
     return {
       ok: false,
       error:
-        error instanceof Error
-          ? error.message
-          : "target focus request failed",
+        error instanceof Error ? error.message : "target focus request failed",
     };
   }
 }
@@ -43,13 +41,8 @@ async function postJson<T>(url: string, payload: object): Promise<T> {
 
   if (!response.ok) {
     const serverError =
-      typeof json === "object" &&
-      json !== null &&
-      "error" in json
-        ? String(
-            (json as { error?: unknown }).error ??
-              "request failed",
-          )
+      typeof json === "object" && json !== null && "error" in json
+        ? String((json as { error?: unknown }).error ?? "request failed")
         : `HTTP ${response.status}`;
 
     throw new Error(serverError);

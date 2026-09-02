@@ -2,17 +2,17 @@ import type { DashboardDataMode } from "@/types/dashboard";
 
 const runtimeConfig = window.__IST_THESIS_DASHBOARD_CONFIG__ ?? {};
 const modeRaw = String(
-  runtimeConfig.mode ??
-    import.meta.env.VITE_DASHBOARD_DATA_MODE ??
-    "backend",
+  runtimeConfig.mode ?? import.meta.env.VITE_DASHBOARD_DATA_MODE ?? "backend",
 );
 const browserHost = window.location.hostname || "127.0.0.1";
 
 function normalizeEndpointHost(rawUrl: string): string {
   try {
     const url = new URL(rawUrl, window.location.origin);
-    const isLocalHost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    const browserIsRemote = browserHost !== "localhost" && browserHost !== "127.0.0.1";
+    const isLocalHost =
+      url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    const browserIsRemote =
+      browserHost !== "localhost" && browserHost !== "127.0.0.1";
     if (isLocalHost && browserIsRemote) {
       url.hostname = browserHost;
     }

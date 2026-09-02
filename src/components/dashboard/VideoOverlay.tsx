@@ -6,7 +6,9 @@ import { overlayStyle } from "@/components/dashboard/OverlayBox";
 interface VideoOverlayProps {
   telemetry: DashboardTelemetry | null;
   videoUrl: string;
-  onResolutionChange?: (resolution: { width: number; height: number } | null) => void;
+  onResolutionChange?: (
+    resolution: { width: number; height: number } | null,
+  ) => void;
 }
 
 interface NormalizedBox {
@@ -46,10 +48,19 @@ function overlapIoU(a: NormalizedBox, b: NormalizedBox): number {
   return union > 0 ? intersection / union : 0;
 }
 
-export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoOverlayProps) {
+export function VideoOverlay({
+  telemetry,
+  videoUrl,
+  onResolutionChange,
+}: VideoOverlayProps) {
   const videoRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const lastTargetBoxRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const lastTargetBoxRef = useRef<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
   const lastResolutionRef = useRef<string | null>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
@@ -68,14 +79,12 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
     const timVisible = tim?.visible === true;
 
     const timTargetId =
-      typeof tim?.target_track_id === "number" &&
-      tim.target_track_id > 0
+      typeof tim?.target_track_id === "number" && tim.target_track_id > 0
         ? tim.target_track_id
         : null;
 
     const selectedTargetId =
-      typeof telemetry.target === "number" &&
-      telemetry.target > 0
+      typeof telemetry.target === "number" && telemetry.target > 0
         ? telemetry.target
         : null;
 
@@ -100,18 +109,11 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
       return { track, mode: "confirmed" as const };
     }
 
-    if (
-      timTargetId === targetId &&
-      timVisible &&
-      timState === "UNCERTAIN"
-    ) {
+    if (timTargetId === targetId && timVisible && timState === "UNCERTAIN") {
       return { track, mode: "uncertain" as const };
     }
 
-    if (
-      timTargetId === targetId &&
-      (timState === "LOST" || !timVisible)
-    ) {
+    if (timTargetId === targetId && (timState === "LOST" || !timVisible)) {
       return { track, mode: "lost" as const };
     }
 
@@ -281,30 +283,17 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
         const label = `#${track.id}`;
         context.font = "600 14px IBM Plex Mono, monospace";
 
-        const textW =
-          Math.ceil(context.measureText(label).width) + 10;
+        const textW = Math.ceil(context.measureText(label).width) + 10;
 
-        const labelX = Math.max(
-          0,
-          Math.min(canvas.width - textW, x),
-        );
+        const labelX = Math.max(0, Math.min(canvas.width - textW, x));
 
         const labelY = Math.max(0, y - 20);
 
         context.fillStyle = style.fill;
-        context.fillRect(
-          labelX,
-          labelY,
-          textW,
-          20,
-        );
+        context.fillRect(labelX, labelY, textW, 20);
 
         context.fillStyle = style.text;
-        context.fillText(
-          label,
-          labelX + 5,
-          labelY + 15,
-        );
+        context.fillText(label, labelX + 5, labelY + 15);
       });
 
       const timState = String(
@@ -331,11 +320,7 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
 
         context.strokeStyle = style.stroke;
         context.lineWidth = isConfirmed ? 2.5 : 2;
-        context.setLineDash(
-          isConfirmed
-            ? []
-            : style.lineDash ?? [7, 4],
-        );
+        context.setLineDash(isConfirmed ? [] : (style.lineDash ?? [7, 4]));
         context.strokeRect(x, y, w, h);
         context.setLineDash([]);
 
@@ -379,7 +364,14 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
     return () => {
       window.removeEventListener("resize", resize);
     };
-  }, [detections, reportResolution, targetPresentation, targetTrack, telemetry?.target, tracks]);
+  }, [
+    detections,
+    reportResolution,
+    targetPresentation,
+    targetTrack,
+    telemetry?.target,
+    tracks,
+  ]);
 
   return (
     <div className="relative aspect-[4/3] h-auto min-h-0 w-full overflow-hidden rounded-md border border-zinc-700/80 bg-zinc-900 lg:aspect-auto lg:h-full lg:min-h-[320px] lg:rounded-lg">
@@ -402,13 +394,20 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
           setVideoError(true);
         }}
       />
-      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
+      <canvas
+        ref={canvasRef}
+        className="pointer-events-none absolute inset-0 h-full w-full"
+      />
 
       {videoError && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-zinc-950/60">
           <div className="text-center">
-            <div className="text-sm font-medium text-zinc-200">Video stream unavailable</div>
-            <div className="mt-1 text-xs text-zinc-500">Check camera endpoint or stream process.</div>
+            <div className="text-sm font-medium text-zinc-200">
+              Video stream unavailable
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Check camera endpoint or stream process.
+            </div>
           </div>
         </div>
       )}
@@ -416,7 +415,9 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
       {!videoLoaded && !videoError && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
           <Loader2 className="h-12 w-12 animate-spin text-zinc-300" />
-          <div className="text-xs text-zinc-400">Connecting video stream...</div>
+          <div className="text-xs text-zinc-400">
+            Connecting video stream...
+          </div>
         </div>
       )}
 
@@ -431,7 +432,6 @@ export function VideoOverlay({ telemetry, videoUrl, onResolutionChange }: VideoO
           Waiting telemetry overlay
         </div>
       )}
-
     </div>
   );
 }

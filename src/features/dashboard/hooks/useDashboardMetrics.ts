@@ -1,6 +1,15 @@
 import { useMemo, useRef } from "react";
-import type { DashboardModel, DashboardTelemetry, MetricsSnapshot } from "@/types/dashboard";
-import { fmt, mean, percentile, pushSeries } from "@/features/dashboard/utils/metrics";
+import type {
+  DashboardModel,
+  DashboardTelemetry,
+  MetricsSnapshot,
+} from "@/types/dashboard";
+import {
+  fmt,
+  mean,
+  percentile,
+  pushSeries,
+} from "@/features/dashboard/utils/metrics";
 
 const METRICS_SCHEMA_FALLBACK = 3;
 const DEFAULT_FPS_WINDOW_SECONDS = 3;
@@ -24,7 +33,8 @@ function computeHealthScore(args: {
   pubDtP95Ms: number | null;
   e2eWarnMs: number;
 }): number | null {
-  const { cameraFpsRoll, detOutFpsRoll, e2eP95Ms, pubDtP95Ms, e2eWarnMs } = args;
+  const { cameraFpsRoll, detOutFpsRoll, e2eP95Ms, pubDtP95Ms, e2eWarnMs } =
+    args;
 
   if (e2eP95Ms === null && detOutFpsRoll === null && pubDtP95Ms === null) {
     return null;
@@ -33,7 +43,9 @@ function computeHealthScore(args: {
   const e2eGoodMs = 70;
   const e2eBadMs = Math.max(e2eWarnMs * 1.8, e2eGoodMs + 1);
   const latencyScore =
-    e2eP95Ms === null ? null : clamp01((e2eBadMs - e2eP95Ms) / (e2eBadMs - e2eGoodMs));
+    e2eP95Ms === null
+      ? null
+      : clamp01((e2eBadMs - e2eP95Ms) / (e2eBadMs - e2eGoodMs));
 
   let throughputScore: number | null = null;
   if (cameraFpsRoll !== null && cameraFpsRoll > 0 && detOutFpsRoll !== null) {
@@ -49,7 +61,9 @@ function computeHealthScore(args: {
       detOutFpsRoll !== null && detOutFpsRoll > 0 ? 1000 / detOutFpsRoll : 100;
     const cadenceGoodMs = targetIntervalMs * 1.2;
     const cadenceBadMs = targetIntervalMs * 2.0;
-    cadenceScore = clamp01((cadenceBadMs - pubDtP95Ms) / (cadenceBadMs - cadenceGoodMs));
+    cadenceScore = clamp01(
+      (cadenceBadMs - pubDtP95Ms) / (cadenceBadMs - cadenceGoodMs),
+    );
   }
 
   const weighted: Array<[number, number | null]> = [
@@ -84,7 +98,10 @@ interface SeriesStore {
   temp: number[];
 }
 
-export function useDashboardMetrics(telemetry: DashboardTelemetry | null, model: DashboardModel) {
+export function useDashboardMetrics(
+  telemetry: DashboardTelemetry | null,
+  model: DashboardModel,
+) {
   const seriesRef = useRef<SeriesStore>({
     videoFps: [],
     detFps: [],
@@ -106,9 +123,15 @@ export function useDashboardMetrics(telemetry: DashboardTelemetry | null, model:
 
     const series = seriesRef.current;
     const detCount = telemetry.detections.length;
-    const metricsSchemaVersion = telemetry.metrics_schema_version ?? METRICS_SCHEMA_FALLBACK;
-    const fpsWindowSeconds = telemetry.metric_windows?.det_out_fps_seconds ?? DEFAULT_FPS_WINDOW_SECONDS;
-    const rollingFpsSamples = Math.max(5, Math.round(fpsWindowSeconds * ASSUMED_TELEMETRY_HZ));
+    const metricsSchemaVersion =
+      telemetry.metrics_schema_version ?? METRICS_SCHEMA_FALLBACK;
+    const fpsWindowSeconds =
+      telemetry.metric_windows?.det_out_fps_seconds ??
+      DEFAULT_FPS_WINDOW_SECONDS;
+    const rollingFpsSamples = Math.max(
+      5,
+      Math.round(fpsWindowSeconds * ASSUMED_TELEMETRY_HZ),
+    );
     const e2eWarnMs = telemetry.metric_thresholds_ms?.e2e_det_ms ?? 120;
     const pubDtWarnMs = telemetry.metric_thresholds_ms?.pub_dt_ms ?? 120;
 
@@ -128,9 +151,18 @@ export function useDashboardMetrics(telemetry: DashboardTelemetry | null, model:
 
     const cameraInputFpsRoll = mean(series.videoFps.slice(-rollingFpsSamples));
     const detOutFpsRoll = mean(series.detFps.slice(-rollingFpsSamples));
-    const e2eDetP50Ms = percentile(series.latency.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES), 50);
-    const e2eDetP95Ms = percentile(series.latency.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES), 95);
-    const pubDtP95Ms = percentile(series.detInterval.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES), 95);
+    const e2eDetP50Ms = percentile(
+      series.latency.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES),
+      50,
+    );
+    const e2eDetP95Ms = percentile(
+      series.latency.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES),
+      95,
+    );
+    const pubDtP95Ms = percentile(
+      series.detInterval.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES),
+      95,
+    );
     const healthScore = computeHealthScore({
       cameraFpsRoll: cameraInputFpsRoll,
       detOutFpsRoll,
@@ -158,8 +190,12 @@ export function useDashboardMetrics(telemetry: DashboardTelemetry | null, model:
       e2e_det_p95_ms: e2eDetP95Ms,
       replay_progress: telemetry.replay_progress,
       detections_now: detCount,
-      detections_10s_avg: mean(series.detCount.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES)),
-      detections_10s_max: series.detCount.length ? Math.max(...series.detCount.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES)) : null,
+      detections_10s_avg: mean(
+        series.detCount.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES),
+      ),
+      detections_10s_max: series.detCount.length
+        ? Math.max(...series.detCount.slice(-LATENCY_PERCENTILE_WINDOW_SAMPLES))
+        : null,
       cpu_percent_inst: telemetry.system.cpu_percent,
       cpu_percent_10s_avg: mean(series.cpu.slice(-rollingFpsSamples)),
       mem_percent_inst: telemetry.system.mem_percent,
@@ -172,7 +208,10 @@ export function useDashboardMetrics(telemetry: DashboardTelemetry | null, model:
     return {
       snapshot,
       formatted: {
-        videoFps: fmt(snapshot.camera_input_fps_roll ?? snapshot.camera_input_fps_inst, 1),
+        videoFps: fmt(
+          snapshot.camera_input_fps_roll ?? snapshot.camera_input_fps_inst,
+          1,
+        ),
         detFps: fmt(snapshot.det_out_fps_roll ?? snapshot.det_out_fps_inst, 1),
         latency: fmt(snapshot.e2e_det_ms_inst, 1, " ms"),
       },

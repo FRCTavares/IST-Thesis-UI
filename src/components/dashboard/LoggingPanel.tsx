@@ -1,10 +1,25 @@
 import { useMemo, useState } from "react";
 import { Download, Filter, Pause, Play, Trash2 } from "lucide-react";
 import { PanelShell } from "@/components/dashboard/PanelShell";
-import type { DashboardLogEntry, DashboardLogLevel, DashboardLogSource } from "@/types/dashboard";
+import type {
+  DashboardLogEntry,
+  DashboardLogLevel,
+  DashboardLogSource,
+} from "@/types/dashboard";
 
-const levelChoices: Array<DashboardLogLevel | "all"> = ["all", "debug", "info", "warn", "error"];
-const sourceChoices: Array<DashboardLogSource | "all"> = ["all", "socket", "control", "system"];
+const levelChoices: Array<DashboardLogLevel | "all"> = [
+  "all",
+  "debug",
+  "info",
+  "warn",
+  "error",
+];
+const sourceChoices: Array<DashboardLogSource | "all"> = [
+  "all",
+  "socket",
+  "control",
+  "system",
+];
 
 interface LoggingPanelProps {
   entries: DashboardLogEntry[];
@@ -26,14 +41,19 @@ export function LoggingPanel({
   onExportCsv,
 }: LoggingPanelProps) {
   const [searchText, setSearchText] = useState("");
-  const [levelFilter, setLevelFilter] = useState<DashboardLogLevel | "all">("all");
-  const [sourceFilter, setSourceFilter] = useState<DashboardLogSource | "all">("all");
+  const [levelFilter, setLevelFilter] = useState<DashboardLogLevel | "all">(
+    "all",
+  );
+  const [sourceFilter, setSourceFilter] = useState<DashboardLogSource | "all">(
+    "all",
+  );
 
   const filteredEntries = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     return entries.filter((entry) => {
       const levelMatch = levelFilter === "all" || entry.level === levelFilter;
-      const sourceMatch = sourceFilter === "all" || entry.source === sourceFilter;
+      const sourceMatch =
+        sourceFilter === "all" || entry.source === sourceFilter;
       const textMatch =
         query.length === 0 ||
         entry.message.toLowerCase().includes(query) ||
@@ -76,12 +96,18 @@ export function LoggingPanel({
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
       <PanelShell
         title="Logging Controls"
-        action={<div className="text-[11px] text-zinc-400">{filteredEntries.length} shown / {entries.length} total</div>}
+        action={
+          <div className="text-[11px] text-zinc-400">
+            {filteredEntries.length} shown / {entries.length} total
+          </div>
+        }
         contentClassName="grid gap-3 p-3"
       >
         <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
           <label className="grid gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Search Logs</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Search Logs
+            </span>
             <input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -91,10 +117,14 @@ export function LoggingPanel({
           </label>
 
           <label className="grid gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Level Filter</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Level Filter
+            </span>
             <select
               value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value as DashboardLogLevel | "all")}
+              onChange={(e) =>
+                setLevelFilter(e.target.value as DashboardLogLevel | "all")
+              }
               className="h-9 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 text-sm text-zinc-100 outline-none transition-all focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
             >
               {levelChoices.map((level) => (
@@ -106,10 +136,14 @@ export function LoggingPanel({
           </label>
 
           <label className="grid gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Source Filter</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Source Filter
+            </span>
             <select
               value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value as DashboardLogSource | "all")}
+              onChange={(e) =>
+                setSourceFilter(e.target.value as DashboardLogSource | "all")
+              }
               className="h-9 rounded-md border border-zinc-700 bg-zinc-950/80 px-3 text-sm text-zinc-100 outline-none transition-all focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500"
             >
               {sourceChoices.map((source) => (
@@ -127,7 +161,11 @@ export function LoggingPanel({
             onClick={onTogglePaused}
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/70 px-3 text-xs font-medium text-zinc-200 transition-all hover:border-zinc-600 hover:bg-zinc-800/80"
           >
-            {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+            {isPaused ? (
+              <Play className="h-3.5 w-3.5" />
+            ) : (
+              <Pause className="h-3.5 w-3.5" />
+            )}
             {isPaused ? "Resume Intake" : "Pause Intake"}
           </button>
 
@@ -170,61 +208,108 @@ export function LoggingPanel({
       </PanelShell>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_1.2fr]">
-        <PanelShell title="Level Counters" contentClassName="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
-          {(["debug", "info", "warn", "error"] as DashboardLogLevel[]).map((level) => (
-            <div key={level} className="rounded-md border border-zinc-700/80 bg-zinc-900/60 p-2.5">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">{level}</div>
-              <div className={`mt-1 text-xl font-semibold ${level === "error" ? "text-red-300" : level === "warn" ? "text-amber-300" : "text-zinc-100"}`}>
-                {levelCounts[level]}
+        <PanelShell
+          title="Level Counters"
+          contentClassName="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4"
+        >
+          {(["debug", "info", "warn", "error"] as DashboardLogLevel[]).map(
+            (level) => (
+              <div
+                key={level}
+                className="rounded-md border border-zinc-700/80 bg-zinc-900/60 p-2.5"
+              >
+                <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                  {level}
+                </div>
+                <div
+                  className={`mt-1 text-xl font-semibold ${level === "error" ? "text-red-300" : level === "warn" ? "text-amber-300" : "text-zinc-100"}`}
+                >
+                  {levelCounts[level]}
+                </div>
               </div>
-            </div>
-          ))}
+            ),
+          )}
         </PanelShell>
 
-        <PanelShell title="Source Distribution" contentClassName="grid gap-2 p-3">
-          {(["socket", "control", "system"] as DashboardLogSource[]).map((source) => {
-            const count = sourceCounts[source];
-            const pct = Math.round((count / maxSourceCount) * 100);
-            return (
-              <div key={source} className="grid grid-cols-[88px_minmax(0,1fr)_44px] items-center gap-2">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-400">{source}</div>
-                <div className="h-2.5 overflow-hidden rounded-full border border-zinc-700/80 bg-zinc-900/80">
-                  <div
-                    className={`h-full ${source === "socket" ? "bg-zinc-400" : source === "control" ? "bg-zinc-300" : "bg-red-400"}`}
-                    style={{ width: `${pct}%` }}
-                  />
+        <PanelShell
+          title="Source Distribution"
+          contentClassName="grid gap-2 p-3"
+        >
+          {(["socket", "control", "system"] as DashboardLogSource[]).map(
+            (source) => {
+              const count = sourceCounts[source];
+              const pct = Math.round((count / maxSourceCount) * 100);
+              return (
+                <div
+                  key={source}
+                  className="grid grid-cols-[88px_minmax(0,1fr)_44px] items-center gap-2"
+                >
+                  <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-400">
+                    {source}
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full border border-zinc-700/80 bg-zinc-900/80">
+                    <div
+                      className={`h-full ${source === "socket" ? "bg-zinc-400" : source === "control" ? "bg-zinc-300" : "bg-red-400"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="text-right font-mono text-[11px] text-zinc-300">
+                    {count}
+                  </div>
                 </div>
-                <div className="text-right font-mono text-[11px] text-zinc-300">{count}</div>
-              </div>
-            );
-          })}
+              );
+            },
+          )}
         </PanelShell>
       </div>
 
-      <PanelShell title="Log Stream" className="min-h-0" contentClassName="h-full min-h-0 p-0">
+      <PanelShell
+        title="Log Stream"
+        className="min-h-0"
+        contentClassName="h-full min-h-0 p-0"
+      >
         <div className="h-full min-h-0 overflow-auto">
           {filteredEntries.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-zinc-500">No logs match current filters.</div>
+            <div className="px-3 py-4 text-sm text-zinc-500">
+              No logs match current filters.
+            </div>
           ) : (
             <table className="w-full border-collapse text-left text-xs">
               <thead className="sticky top-0 z-10 bg-zinc-900/95 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
                 <tr>
-                  <th className="border-b border-zinc-700/70 px-3 py-2">Timestamp</th>
-                  <th className="border-b border-zinc-700/70 px-3 py-2">Level</th>
-                  <th className="border-b border-zinc-700/70 px-3 py-2">Source</th>
-                  <th className="border-b border-zinc-700/70 px-3 py-2">Message</th>
+                  <th className="border-b border-zinc-700/70 px-3 py-2">
+                    Timestamp
+                  </th>
+                  <th className="border-b border-zinc-700/70 px-3 py-2">
+                    Level
+                  </th>
+                  <th className="border-b border-zinc-700/70 px-3 py-2">
+                    Source
+                  </th>
+                  <th className="border-b border-zinc-700/70 px-3 py-2">
+                    Message
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEntries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-zinc-800/85 align-top text-zinc-300">
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-400">{new Date(entry.timestamp_iso).toLocaleString()}</td>
+                  <tr
+                    key={entry.id}
+                    className="border-b border-zinc-800/85 align-top text-zinc-300"
+                  >
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-400">
+                      {new Date(entry.timestamp_iso).toLocaleString()}
+                    </td>
                     <td className="px-3 py-2">
-                      <span className={`inline-flex rounded border px-2 py-0.5 font-semibold uppercase ${levelClass[entry.level]}`}>
+                      <span
+                        className={`inline-flex rounded border px-2 py-0.5 font-semibold uppercase ${levelClass[entry.level]}`}
+                      >
                         {entry.level}
                       </span>
                     </td>
-                    <td className="px-3 py-2 uppercase tracking-[0.08em] text-zinc-400">{entry.source}</td>
+                    <td className="px-3 py-2 uppercase tracking-[0.08em] text-zinc-400">
+                      {entry.source}
+                    </td>
                     <td className="px-3 py-2 text-zinc-200">{entry.message}</td>
                   </tr>
                 ))}

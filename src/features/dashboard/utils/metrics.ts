@@ -1,4 +1,8 @@
-export function pushSeries(arr: number[], value: number | null | undefined, maxLen = 240): void {
+export function pushSeries(
+  arr: number[],
+  value: number | null | undefined,
+  maxLen = 240,
+): void {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return;
   }
@@ -20,11 +24,18 @@ export function percentile(arr: number[], p: number): number | null {
     return null;
   }
   const sorted = [...arr].sort((a, b) => a - b);
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * (sorted.length - 1))));
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.floor((p / 100) * (sorted.length - 1))),
+  );
   return sorted[idx] ?? null;
 }
 
-export function fmt(value: number | null | undefined, digits = 1, unit = ""): string {
+export function fmt(
+  value: number | null | undefined,
+  digits = 1,
+  unit = "",
+): string {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "--";
   }

@@ -10,12 +10,12 @@ export function buildMockTelemetry(seed: number): DashboardTelemetry {
   const lifecycleFrame = 200 + seed;
 
   const detections = Array.from({ length: detectionCount }).map((_, index) => ({
-    x: 0.2 + (index * 0.15 + (Math.sin(phase + index) + 1) * 0.2) % 0.6,
-    y: 0.25 + ((Math.cos(phase * 0.6 + index) + 1) * 0.2),
+    x: 0.2 + ((index * 0.15 + (Math.sin(phase + index) + 1) * 0.2) % 0.6),
+    y: 0.25 + (Math.cos(phase * 0.6 + index) + 1) * 0.2,
     w: 0.14,
     h: 0.18,
     label: "person",
-    score: 0.8 + ((Math.sin(phase + index) + 1) / 10),
+    score: 0.8 + (Math.sin(phase + index) + 1) / 10,
   }));
 
   return {
@@ -106,7 +106,7 @@ export function buildMockTelemetry(seed: number): DashboardTelemetry {
       e2e_det_ms: 120,
       pub_dt_ms: 120,
     },
-    replay_progress: ((seed % 200) / 200),
+    replay_progress: (seed % 200) / 200,
     system: {
       cpu_percent: 45 + Math.sin(phase * 0.9) * 12,
       mem_percent: 61 + Math.cos(phase * 0.5) * 6,

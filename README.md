@@ -52,12 +52,28 @@ Binding to `0.0.0.0` exposes the frontend on reachable interfaces and should onl
 
 Launcher state is written outside the repository under `${XDG_STATE_HOME:-$HOME/.local/state}/ist-thesis-ui/`. The launcher executes the actual Vite Node process in the foreground rather than backgrounding an `npm run dev` wrapper, so signals and process shutdown remain deterministic.
 
-Production build validation remains available directly:
+The deterministic frontend validation contract is:
 
-```bash
-npm ci
-npm run build
-```
+    npm ci
+    npm run verify
+
+`npm run verify` runs the repository formatting check, ESLint, explicit
+TypeScript typecheck, Vitest unit tests, production Vite build,
+generated-artifact guard, and a real loopback smoke test of the supported
+prebuilt-dashboard launcher.
+
+Individual development checks are available through:
+
+    npm run format
+    npm run format:check
+    npm run lint
+    npm run typecheck
+    npm run test
+    npm run build
+    npm run smoke
+
+GitHub Actions runs the same locked `npm ci` plus `npm run verify` contract on
+pushes and pull requests.
 
 ## Runtime boundary
 
