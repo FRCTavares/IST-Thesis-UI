@@ -1,8 +1,13 @@
-import type { MetricsSnapshot } from "@/types/dashboard";
+import type {
+  DashboardBatteryTelemetry,
+  MetricsSnapshot,
+} from "@/types/dashboard";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { batteryPresentation } from "@/features/dashboard/utils/battery";
 
 interface FieldHealthStripProps {
   snapshot: MetricsSnapshot | null;
+  battery: DashboardBatteryTelemetry | null;
 }
 
 type HealthState = {
@@ -54,7 +59,7 @@ function deriveHealth(snapshot: MetricsSnapshot | null): HealthState {
   return { label: "Nominal", tone: "ok" };
 }
 
-export function FieldHealthStrip({ snapshot }: FieldHealthStripProps) {
+export function FieldHealthStrip({ snapshot, battery }: FieldHealthStripProps) {
   const detectorFps =
     snapshot?.det_out_fps_roll ?? snapshot?.det_out_fps_inst ?? null;
 
@@ -62,6 +67,7 @@ export function FieldHealthStrip({ snapshot }: FieldHealthStripProps) {
 
   const temperature = snapshot?.temp_c_inst ?? null;
 
+  const batteryState = batteryPresentation(battery);
   const health = deriveHealth(snapshot);
 
   return (
@@ -97,7 +103,34 @@ export function FieldHealthStrip({ snapshot }: FieldHealthStripProps) {
         </span>
       </div>
 
-      <StatusBadge tone={health.tone}>{health.label}</StatusBadge>
+      <div
+        className="flex min-w-0 flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-1.5"
+        title={batteryState.title}
+      >
+        <span className="text-[8px] font-semibold uppercase tracking-[0.1em] text-zinc-600 lg:text-[9px] lg:tracking-[0.12em]">
+          Bat
+        </span>
+        <span
+          className={`font-mono text-xs font-semibold ${
+            batteryState.state === "stale"
+              ? "text-amber-300"
+              : batteryState.state === "fresh"
+                ? "text-zinc-200"
+                : "text-zinc-500"
+          }`}
+        >
+          {batteryState.primary}
+        </span>
+        {batteryState.secondary ? (
+          <span className="hidden font-mono text-[10px] text-zinc-500 lg:inline">
+            {batteryState.secondary}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="col-span-4 flex justify-end lg:contents">
+        <StatusBadge tone={health.tone}>{health.label}</StatusBadge>
+      </div>
     </section>
   );
 }

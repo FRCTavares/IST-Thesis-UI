@@ -513,7 +513,10 @@ function DashboardPage() {
                 )}
               </div>
 
-              <FieldHealthStrip snapshot={metricState.snapshot} />
+              <FieldHealthStrip
+                snapshot={metricState.snapshot}
+                battery={telemetry?.battery ?? null}
+              />
             </div>
           ) : null}
 

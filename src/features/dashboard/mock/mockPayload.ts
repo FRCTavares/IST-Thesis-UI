@@ -113,5 +113,13 @@ export function buildMockTelemetry(seed: number): DashboardTelemetry {
       mem_used_mb: 1710 + Math.sin(phase * 0.4) * 200,
       temp_c: 63 + Math.sin(phase * 0.3) * 5,
     },
+    battery: {
+      percentage: Math.max(0, Math.min(1, 0.74 + Math.sin(phase * 0.2) * 0.04)),
+      voltage_v: 15.4 + Math.sin(phase * 0.15) * 0.1,
+      current_a: -3.2,
+      age_ms: 80,
+      stale: false,
+      source: "mavros",
+    },
   };
 }

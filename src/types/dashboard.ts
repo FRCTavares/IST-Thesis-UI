@@ -23,6 +23,15 @@ export interface DashboardSystemMetrics {
   temp_c: number | null;
 }
 
+export interface DashboardBatteryTelemetry {
+  percentage: number | null;
+  voltage_v: number | null;
+  current_a: number | null;
+  age_ms: number | null;
+  stale: boolean;
+  source: "mavros" | null;
+}
+
 export interface DashboardResolution {
   width: number;
   height: number;
@@ -131,6 +140,7 @@ export interface DashboardTelemetry {
   replay_progress: number | null;
   inference_resolution?: DashboardResolution;
   system: DashboardSystemMetrics;
+  battery?: DashboardBatteryTelemetry;
 }
 
 export type DashboardLogLevel = "debug" | "info" | "warn" | "error";
