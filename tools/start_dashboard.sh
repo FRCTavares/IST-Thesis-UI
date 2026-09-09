@@ -37,6 +37,7 @@ Environment:
   XDG_STATE_HOME
   VITE_DASHBOARD_API_BASE_URL
   VITE_DASHBOARD_WS_URL
+  VITE_DASHBOARD_CONTROL_TOKEN
 
 The default runtime serves the already-built dist/ tree with Python's standard
 library HTTP server. It performs no npm install, frontend compilation, Vite
@@ -189,13 +190,40 @@ fi
 
 RUNTIME_API="${VITE_DASHBOARD_API_BASE_URL:-}"
 RUNTIME_WS="${VITE_DASHBOARD_WS_URL:-}"
+RUNTIME_CONTROL_TOKEN="${VITE_DASHBOARD_CONTROL_TOKEN:-}"
 
-python3 - "$MODE" "$RUNTIME_API" "$RUNTIME_WS" "$RUNTIME_CONFIG" <<'PY_RUNTIME'
+# The generated runtime config can carry a browser-visible control token for
+# the active session. Treat it as ephemeral: preserve any pre-existing file,
+# and restore it (or remove the generated one) on any exit path.
+RUNTIME_CONFIG_BACKUP=""
+RUNTIME_CONFIG_GENERATED=0
+
+restore_runtime_config() {
+    if [ "$RUNTIME_CONFIG_GENERATED" -ne 1 ]; then
+        return
+    fi
+    if [ -n "$RUNTIME_CONFIG_BACKUP" ] && [ -f "$RUNTIME_CONFIG_BACKUP" ]; then
+        mv -f "$RUNTIME_CONFIG_BACKUP" "$RUNTIME_CONFIG" 2>/dev/null || true
+    else
+        rm -f "$RUNTIME_CONFIG" 2>/dev/null || true
+    fi
+    RUNTIME_CONFIG_GENERATED=0
+}
+
+trap restore_runtime_config EXIT INT TERM
+
+if [ -f "$RUNTIME_CONFIG" ]; then
+    RUNTIME_CONFIG_BACKUP="${RUNTIME_CONFIG}.pre-session"
+    cp -f "$RUNTIME_CONFIG" "$RUNTIME_CONFIG_BACKUP"
+fi
+RUNTIME_CONFIG_GENERATED=1
+
+python3 - "$MODE" "$RUNTIME_API" "$RUNTIME_WS" "$RUNTIME_CONTROL_TOKEN" "$RUNTIME_CONFIG" <<'PY_RUNTIME'
 import json
 import sys
 from pathlib import Path
 
-mode, api_url, ws_url, output_path = sys.argv[1:]
+mode, api_url, ws_url, control_token, output_path = sys.argv[1:]
 
 config = {"mode": mode}
 
@@ -204,6 +232,9 @@ if api_url:
 
 if ws_url:
     config["wsUrl"] = ws_url
+
+if control_token:
+    config["controlToken"] = control_token
 
 payload = (
     "window.__IST_THESIS_DASHBOARD_CONFIG__ = "
@@ -218,6 +249,14 @@ printf '  dist:    %s\n' "$DIST_ROOT"
 printf '  config:  %s\n' "$RUNTIME_CONFIG"
 printf '\n'
 
-exec python3 -m http.server "$PORT" \
+# Not exec: keep this shell alive so the trap can clean the ephemeral,
+# token-bearing runtime config after the server stops.
+python3 -m http.server "$PORT" \
     --bind "$HOST" \
-    --directory "$DIST_ROOT"
+    --directory "$DIST_ROOT" &
+SERVER_PID=$!
+wait "$SERVER_PID"
+SERVER_STATUS=$?
+restore_runtime_config
+trap - EXIT INT TERM
+exit "$SERVER_STATUS"
