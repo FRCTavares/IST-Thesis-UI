@@ -41,6 +41,13 @@ export const dashboardConfig = {
   videoUrl: normalizeEndpointHost(
     `http://${browserHost}:8080/stream?topic=/camera/dashboard&type=mjpeg&qos_profile=sensor_data&quality=45`,
   ),
+  // Local field-network access credential for the dashboard control POST
+  // endpoints. Read ONLY from runtime config
+  // (`window.__IST_THESIS_DASHBOARD_CONFIG__.controlToken`), never from a Vite
+  // build-time value, so `vite build` cannot bake the secret into static
+  // assets. Empty by default; the launcher injects it per session for a
+  // non-loopback backend bind.
+  controlToken: String(runtimeConfig.controlToken ?? ""),
 };
 
 function parseMode(input: string): DashboardDataMode {

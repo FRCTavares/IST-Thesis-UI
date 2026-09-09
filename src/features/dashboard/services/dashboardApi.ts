@@ -23,11 +23,19 @@ export async function requestTargetFocus(
 }
 
 async function postJson<T>(url: string, payload: object): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // The backend control endpoints require a bearer token when configured for a
+  // non-loopback bind. Read-only telemetry never carries it.
+  if (dashboardConfig.controlToken) {
+    headers.Authorization = `Bearer ${dashboardConfig.controlToken}`;
+  }
+
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 

@@ -4,6 +4,7 @@ interface IstThesisDashboardRuntimeConfig {
   mode?: string;
   apiBaseUrl?: string;
   wsUrl?: string;
+  controlToken?: string;
 }
 
 interface Window {

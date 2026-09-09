@@ -134,6 +134,20 @@ Use `.env` if explicit endpoint overrides are required; see `.env.example`.
 - `VITE_DASHBOARD_WS_URL`
   - telemetry WebSocket endpoint;
   - default logical endpoint: `ws://<dashboard-host>:8765`.
+- `VITE_DASHBOARD_CONTROL_TOKEN`
+  - local field-network access token for the backend control POST endpoints
+    (`/api/target`), sent as `Authorization: Bearer <token>`; never sent on
+    read-only telemetry;
+  - empty by default; set it only when the Pi dashboard API is bound to a
+    non-loopback interface (see the Thesis-Code dashboard trust boundary);
+  - consumed **only by `tools/start_dashboard.sh`**, which injects it into
+    `dist/runtime-config.js` for the running session. The application reads
+    the token only from `window.__IST_THESIS_DASHBOARD_CONFIG__.controlToken`,
+    never as a Vite build-time value, so `vite build` cannot bake it into
+    static assets. The launcher restores or removes that token-bearing
+    `runtime-config.js` on exit. It is a local access credential visible to
+    anyone with the operator's browser session — not a high-security secret —
+    and is never committed to Git.
 
 When the browser is opened from a remote host, localhost-style API and WebSocket
 values are normalized to the browser-visible dashboard host.
